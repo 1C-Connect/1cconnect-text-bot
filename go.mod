@@ -1,6 +1,6 @@
 module connect-text-bot
 
-go 1.17
+go 1.22
 
 require (
 	github.com/allegro/bigcache/v3 v3.0.2

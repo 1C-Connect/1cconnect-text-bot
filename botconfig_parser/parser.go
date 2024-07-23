@@ -11,6 +11,7 @@ import (
 	"connect-text-bot/logger"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -136,13 +137,6 @@ func nestedToFlat(main *Levels, nested *Levels) (err error) {
 	return
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 func (l *Levels) checkMenus() error {
 	if _, ok := l.Menu[database.START]; !ok {
 		return fmt.Errorf("отсутствует меню %s", database.START)
@@ -167,18 +161,26 @@ func (l *Levels) checkMenus() error {
 			return fmt.Errorf("отсутствуют кнопки: %s %#v", k, v)
 		}
 		for _, b := range v.Buttons {
-			// Если кнопка CLOSE | REDIRECT | BACK то применяем к ней дефолтные настройки
+			// Если кнопка CLOSE | REDIRECT | ... | BACK то применяем к ней дефолтные настройки
+			var modifycatorCount = 0
 			if b.Button.CloseButton && l.CloseButton != nil {
 				b.Button.SetDefault(*l.CloseButton)
+				modifycatorCount++
 			}
 			if b.Button.RedirectButton && l.RedirectButton != nil {
 				b.Button.SetDefault(*l.RedirectButton)
+				modifycatorCount++
 			}
 			if b.Button.BackButton && l.BackButton != nil {
 				b.Button.SetDefault(*l.BackButton)
+				modifycatorCount++
+			}
+			if b.Button.AppointSpecButton != nil && *b.Button.AppointSpecButton != uuid.Nil && l.AppointSpecButton != nil {
+				b.Button.SetDefault(*l.AppointSpecButton)
+				modifycatorCount++
 			}
 
-			if (boolToInt(b.Button.CloseButton) + boolToInt(b.Button.RedirectButton) + boolToInt(b.Button.BackButton)) > 1 {
+			if modifycatorCount > 1 {
 				return fmt.Errorf("кнопка может иметь только один модификатор: %s %#v", k, b)
 			}
 			if b.Button.Goto != "" && b.Button.BackButton {

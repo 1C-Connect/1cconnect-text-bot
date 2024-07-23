@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
+	"slices"
 	"time"
 
 	"connect-text-bot/bot/client"
@@ -119,12 +120,16 @@ func (msg *Message) Start(cnf *config.Conf) error {
 	}
 
 	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 
 	_, err = client.Invoke(cnf, "POST", "/line/drop/keyboard/", "application/json", jsonData)
 
 	return err
 }
 
+// Отправить сообщение в чат
 func (msg *Message) Send(c *gin.Context, text string, keyboard *[][]requests.KeyboardKey) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
@@ -137,6 +142,9 @@ func (msg *Message) Send(c *gin.Context, text string, keyboard *[][]requests.Key
 	}
 
 	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 
 	_, err = client.Invoke(cnf, "POST", "/line/send/message/", "application/json", jsonData)
 
@@ -152,12 +160,16 @@ func (msg *Message) RerouteTreatment(c *gin.Context) error {
 	}
 
 	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 
 	_, err = client.Invoke(cnf, "POST", "/line/appoint/start/", "application/json", jsonData)
 
 	return err
 }
 
+// Закрыть текущее обращение
 func (msg *Message) CloseTreatment(c *gin.Context) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
@@ -169,6 +181,9 @@ func (msg *Message) CloseTreatment(c *gin.Context) error {
 	}
 
 	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 
 	_, err = client.Invoke(cnf, "POST", "/line/drop/treatment/", "application/json", jsonData)
 
@@ -183,12 +198,78 @@ func (msg *Message) StartAndReroute(cnf *config.Conf) error {
 	}
 
 	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 
 	_, err = client.Invoke(cnf, "POST", "/line/appoint/start/", "application/json", jsonData)
 
 	return err
 }
 
+// Попытаться назначить конкретного специалиста
+func (msg *Message) AppointSpec(c *gin.Context, appoint_spec uuid.UUID) error {
+	cnf := c.MustGet("cnf").(*config.Conf)
+	data := requests.TreatmentWithSpecAndAuthorRequest{
+		LineID:   msg.LineId,
+		UserId:   msg.UserId,
+		SpecId:   appoint_spec,
+		AuthorID: cnf.SpecID,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Invoke(cnf, "POST", "/line/appoint/spec/", "application/json", jsonData)
+
+	return err
+}
+
+// Проверить доступен ли специалист по id
+func (msg *Message) GetSpecialistAvailable(c *gin.Context, spec_id uuid.UUID) (available bool, err error) {
+	cnf := c.MustGet("cnf").(*config.Conf)
+
+	r, err := client.Invoke(cnf, "GET", "/line/specialists/"+msg.LineId.String()+"/available/", "application/json", nil)
+	if err != nil {
+		return false, err
+	}
+
+	var spec_ids []uuid.UUID
+	err = json.Unmarshal(r, &spec_ids)
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(spec_ids, spec_id), err
+}
+
+// Получение информации о пользователе
+func (msg *Message) GetSubscriber(c *gin.Context) (content requests.User, err error) {
+	cnf := c.MustGet("cnf").(*config.Conf)
+	r, err := client.Invoke(cnf, "GET", "/line/subscriber/"+msg.UserId.String()+"/", "application/json", nil)
+	if err != nil {
+		return requests.User{}, err
+	}
+	var d requests.User
+	err = json.Unmarshal(r, &d)
+	return d, err
+}
+
+// Получение информации о специалисте
+func (msg *Message) GetSpecialist(c *gin.Context, spec_id uuid.UUID) (content requests.User, err error) {
+	cnf := c.MustGet("cnf").(*config.Conf)
+	r, err := client.Invoke(cnf, "GET", "/line/specialist/"+spec_id.String()+"/", "application/json", nil)
+	if err != nil {
+		return requests.User{}, err
+	}
+	var d requests.User
+	err = json.Unmarshal(r, &d)
+	return d, err
+
+}
+
+// Метод позволяет отправить файл или изображение в чат
 func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, filepath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
@@ -202,6 +283,9 @@ func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, file
 	}
 
 	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
 
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)

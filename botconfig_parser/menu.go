@@ -1,13 +1,16 @@
 package botconfig_parser
 
+import "github.com/google/uuid"
+
 type Levels struct {
 	Menu map[string]*Menu `yaml:"menus"`
 
 	UseQNA QNA `yaml:"use_qna"`
 
-	BackButton     *Button `yaml:"back_button"`
-	CloseButton    *Button `yaml:"close_button"`
-	RedirectButton *Button `yaml:"redirect_button"`
+	BackButton        *Button `yaml:"back_button"`
+	CloseButton       *Button `yaml:"close_button"`
+	RedirectButton    *Button `yaml:"redirect_button"`
+	AppointSpecButton *Button `yaml:"appoint_spec_button"`
 
 	ErrorMessage    string `yaml:"error_message"`
 	GreetingMessage string `yaml:"greeting_message"`
@@ -26,9 +29,12 @@ type QNA struct {
 }
 
 type Answer struct {
-	Chat     string `yaml:"chat"`                // сообщние при переходе на меню
-	File     string `yaml:"file,omitempty"`      // путь к файлу
-	FileText string `yaml:"file_text,omitempty"` // сопроводительный текст к файлу
+	// сообщение при переходе на меню
+	Chat string `yaml:"chat"`
+	// путь к файлу
+	File string `yaml:"file,omitempty"`
+	// сопроводительный текст к файлу
+	FileText string `yaml:"file_text,omitempty"`
 }
 
 type Buttons struct {
@@ -44,16 +50,27 @@ type NestedMenu struct {
 }
 
 type Button struct {
-	ButtonID       string      `yaml:"id"`                        // id кнопки
-	ButtonText     string      `yaml:"text"`                      // текст кнопки
-	Chat           []*Answer   `yaml:"chat,omitempty"`            // сообщение
-	CloseButton    bool        `yaml:"close_button,omitempty"`    // закрыть обращение
-	RedirectButton bool        `yaml:"redirect_button,omitempty"` // перевести на специалиста
-	BackButton     bool        `yaml:"back_button,omitempty"`     // вернуться назад
-	Goto           string      `yaml:"goto"`                      // перейти в меню
-	NestedMenu     *NestedMenu `yaml:"menu"`                      // вложенное меню
+	// id кнопки
+	ButtonID string `yaml:"id"`
+	// текст кнопки
+	ButtonText string `yaml:"text"`
+	// сообщение
+	Chat []*Answer `yaml:"chat,omitempty"`
+	// закрыть обращение
+	CloseButton bool `yaml:"close_button,omitempty"`
+	// перевести на специалиста
+	RedirectButton bool `yaml:"redirect_button,omitempty"`
+	// вернуться назад
+	BackButton bool `yaml:"back_button,omitempty"`
+	// перевести на специалиста по id
+	AppointSpecButton *uuid.UUID `yaml:"appoint_spec_button,omitempty"`
+	// перейти в меню
+	Goto string `yaml:"goto"`
+	// вложенное меню
+	NestedMenu *NestedMenu `yaml:"menu"`
 }
 
+// применить настройки "по умолчанию" для кнопки
 func (b *Button) SetDefault(default_ Button) {
 	if b.ButtonID == "" {
 		b.ButtonID = default_.ButtonID

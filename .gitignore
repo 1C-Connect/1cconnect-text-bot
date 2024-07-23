@@ -47,3 +47,4 @@ monitor
 __debug_bin
 config/config.yml
 /connect-text-bot
+config/bot.yml

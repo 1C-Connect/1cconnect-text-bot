@@ -287,6 +287,17 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 					err = msg.RerouteTreatment(c)
 					return database.GREETINGS, err
 				}
+				if btn.AppointSpecButton != nil && *btn.AppointSpecButton != uuid.Nil {
+					ok, err := msg.GetSpecialistAvailable(c, *btn.AppointSpecButton)
+					if err != nil || !ok {
+						msg.Send(c, "Выбраный пользователь недоступен", nil)
+						goTo = database.FINAL
+						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+						return goTo, err
+					}
+					err = msg.AppointSpec(c, *btn.AppointSpecButton)
+					return database.GREETINGS, err
+				}
 
 				// Сообщения при переходе на новое меню.
 				SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
@@ -295,6 +306,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 			} else { // Произвольный текст
 				if !cm.QnaDisable && menu.UseQNA.Enabled {
 					// logger.Info("QNA", msg, chatState)
+
 					qnaText, isClose, request_id, result_id := getMessageFromQNA(msg, cnf)
 					if qnaText != "" {
 						// Была подсказка
