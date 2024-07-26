@@ -298,6 +298,30 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 					err = msg.AppointSpec(c, *btn.AppointSpecButton)
 					return database.GREETINGS, err
 				}
+				if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
+					r, err := msg.GetSubscriptions(c, *btn.RerouteButton)
+					if err != nil {
+						msg.Send(c, "Во время обработки вашего запроса произошла ошибка", nil)
+						goTo = database.FINAL
+						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+						return goTo, err
+					}
+					if len(r) == 0 {
+						msg.Send(c, "Выбраная линия недоступна", nil)
+						goTo = database.FINAL
+						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+						return goTo, err
+					}
+
+					err = msg.Reroute(c, *btn.RerouteButton, "")
+					if err != nil {
+						msg.Send(c, "Во время обработки вашего запроса произошла ошибка", nil)
+						goTo = database.FINAL
+						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+						return goTo, err
+					}
+					return database.GREETINGS, err
+				}
 
 				// Сообщения при переходе на новое меню.
 				SendAnswer(c, msg, menu, goTo, cnf.FilesDir)

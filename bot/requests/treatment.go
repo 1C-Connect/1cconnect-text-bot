@@ -18,6 +18,13 @@ type (
 		LineID   uuid.UUID  `json:"line_id" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
 		UserId   uuid.UUID  `json:"user_id" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
 		SpecId   uuid.UUID  `json:"spec_id" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
-		AuthorID *uuid.UUID `json:"author_id" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
+		AuthorID *uuid.UUID `json:"author_id,omitempty" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
+	}
+
+	TreatmentReroute struct {
+		LineID   uuid.UUID `json:"line_id" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
+		UserId   uuid.UUID `json:"user_id" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
+		ToLineId uuid.UUID `json:"to_line_id" format:"uuid" example:"bb296731-3d58-4c4a-8227-315bdc2bf3ff"`
+		Quote    string    `json:"quote,omitempty" example:"цитата"`
 	}
 )

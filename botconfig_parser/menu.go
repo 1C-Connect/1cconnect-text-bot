@@ -11,6 +11,7 @@ type Levels struct {
 	CloseButton       *Button `yaml:"close_button"`
 	RedirectButton    *Button `yaml:"redirect_button"`
 	AppointSpecButton *Button `yaml:"appoint_spec_button"`
+	RerouteButton     *Button `yaml:"reroute_button"`
 
 	ErrorMessage    string `yaml:"error_message"`
 	GreetingMessage string `yaml:"greeting_message"`
@@ -64,6 +65,8 @@ type Button struct {
 	BackButton bool `yaml:"back_button,omitempty"`
 	// перевести на специалиста по id
 	AppointSpecButton *uuid.UUID `yaml:"appoint_spec_button,omitempty"`
+	// Перевод обращения на другую линию
+	RerouteButton *uuid.UUID `yaml:"reroute_button,omitempty"`
 	// перейти в меню
 	Goto string `yaml:"goto"`
 	// вложенное меню

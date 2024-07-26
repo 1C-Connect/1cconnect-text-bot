@@ -45,6 +45,5 @@ go.sum
 monitor
 
 __debug_bin
-config/config.yml
+config/*.yml
 /connect-text-bot
-config/bot.yml

@@ -179,6 +179,10 @@ func (l *Levels) checkMenus() error {
 				b.Button.SetDefault(*l.AppointSpecButton)
 				modifycatorCount++
 			}
+			if b.Button.RerouteButton != nil && *b.Button.RerouteButton != uuid.Nil && l.RerouteButton != nil {
+				b.Button.SetDefault(*l.RerouteButton)
+				modifycatorCount++
+			}
 
 			if modifycatorCount > 1 {
 				return fmt.Errorf("кнопка может иметь только один модификатор: %s %#v", k, b)
