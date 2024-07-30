@@ -12,6 +12,7 @@ type Levels struct {
 	RedirectButton    *Button `yaml:"redirect_button"`
 	AppointSpecButton *Button `yaml:"appoint_spec_button"`
 	RerouteButton     *Button `yaml:"reroute_button"`
+	ExecButton        *Button `yaml:"exec_button"`
 
 	ErrorMessage    string `yaml:"error_message"`
 	GreetingMessage string `yaml:"greeting_message"`
@@ -67,6 +68,8 @@ type Button struct {
 	AppointSpecButton *uuid.UUID `yaml:"appoint_spec_button,omitempty"`
 	// Перевод обращения на другую линию
 	RerouteButton *uuid.UUID `yaml:"reroute_button,omitempty"`
+	// Выполнить команду на стороне сервера
+	ExecButton string `yaml:"exec_button,omitempty"`
 	// перейти в меню
 	Goto string `yaml:"goto"`
 	// вложенное меню

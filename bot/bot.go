@@ -1,14 +1,18 @@
 package bot
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
+	"text/template"
 	"time"
 
 	"connect-text-bot/bot/messages"
@@ -290,10 +294,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 				if btn.AppointSpecButton != nil && *btn.AppointSpecButton != uuid.Nil {
 					ok, err := msg.GetSpecialistAvailable(c, *btn.AppointSpecButton)
 					if err != nil || !ok {
-						msg.Send(c, "Выбраный пользователь недоступен", nil)
-						goTo = database.FINAL
-						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-						return goTo, err
+						return finalSend(c, msg, menu, cnf.FilesDir, "Выбранный специалист недоступен", err)
 					}
 					err = msg.AppointSpec(c, *btn.AppointSpecButton)
 					return database.GREETINGS, err
@@ -301,26 +302,56 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 				if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
 					r, err := msg.GetSubscriptions(c, *btn.RerouteButton)
 					if err != nil {
-						msg.Send(c, "Во время обработки вашего запроса произошла ошибка", nil)
-						goTo = database.FINAL
-						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-						return goTo, err
+						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
 					}
 					if len(r) == 0 {
-						msg.Send(c, "Выбраная линия недоступна", nil)
-						goTo = database.FINAL
-						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-						return goTo, err
+						return finalSend(c, msg, menu, cnf.FilesDir, "Выбранная линия недоступна", err)
 					}
 
 					err = msg.Reroute(c, *btn.RerouteButton, "")
 					if err != nil {
-						msg.Send(c, "Во время обработки вашего запроса произошла ошибка", nil)
-						goTo = database.FINAL
-						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-						return goTo, err
+						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
 					}
 					return database.GREETINGS, err
+				}
+				if btn.ExecButton != "" {
+					// получаем данные о пользователе
+					userData, err := msg.GetSubscriber(c)
+					if err != nil {
+						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
+					}
+
+					// формируем шаблон
+					templ, err := template.New("cmd").Parse(btn.ExecButton)
+					if err != nil {
+						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
+					}
+
+					// заполняем шаблон
+					var templOutput bytes.Buffer
+					err = templ.Execute(&templOutput, userData)
+					if err != nil {
+						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
+					}
+
+					// выполняем команду на устройстве
+					var cmd *exec.Cmd
+					switch runtime.GOOS {
+					case "windows":
+						cmd = exec.Command("cmd.exe", "/C", templOutput.String()) // Для Windows
+					default:
+						cmd = exec.Command("bash", "-c", templOutput.String()) // Для Linux/Mac
+					}
+					cmdOutput, err := cmd.CombinedOutput()
+					if err != nil {
+						return finalSend(c, msg, menu, cnf.FilesDir, "Ошибка: "+err.Error(), err)
+					}
+
+					// выводим результат и завершаем
+					msg.Send(c, string(cmdOutput), nil)
+					goTo := database.FINAL
+					SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+					return goTo, err
 				}
 
 				// Сообщения при переходе на новое меню.
@@ -355,6 +386,17 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 		}
 	}
 	return database.GREETINGS, errors.New("i don't know what i should do")
+}
+
+func finalSend(c *gin.Context, msg *messages.Message, menu *botconfig_parser.Levels, filesDir, finalMsg string, err error) (string, error) {
+	if finalMsg != "" {
+		msg.Send(c, finalMsg, nil)
+	} else {
+		msg.Send(c, "Во время обработки вашего запроса произошла ошибка", nil)
+	}
+	goTo := database.FINAL
+	SendAnswer(c, msg, menu, goTo, filesDir)
+	return goTo, err
 }
 
 // getMessageFromQNA - Метод возвращает ответ с Базы Знаний, и флаг, если это сообщение закрывает обращение.
