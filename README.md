@@ -370,10 +370,25 @@ buttons:
   - button:
       id: 3
       text: 'Выполнить команду на стороне сервера'
-      exec_button: "echo -n \"{{ .UserId }}\" | base64 && echo -n \"{{ .Surname }} {{ .Name }}\""
+      exec_button: "./scripts/example.sh {{ .UserId }} {{ .Surname }} {{ .Name }}"
 ```
 
 В команду можно передать данный относящиеся к структуре объекта User (Пользователь) в формате `{{ .НазваниеПоля }}`
+
+Cкрипт `example.sh` имеет следующее содержание
+
+```bash
+#!/bin/bash
+
+echo -n $1 | base64 
+echo -n $2 $3
+```
+
+Не забудьте сделать скрипт исполняемым
+
+```bash
+chmod +x ./scripts/example.sh
+```
 
 ### Как создать меню
 
