@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"text/template"
 	"time"
@@ -335,13 +334,8 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 					}
 
 					// выполняем команду на устройстве
-					var cmd *exec.Cmd
-					switch runtime.GOOS {
-					case "windows":
-						cmd = exec.Command("cmd.exe", "/C", templOutput.String()) // Для Windows
-					default:
-						cmd = exec.Command("bash", "-c", templOutput.String()) // Для Linux/Mac
-					}
+					cmdParts := strings.Fields(templOutput.String())
+					var cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 					cmdOutput, err := cmd.CombinedOutput()
 					if err != nil {
 						return finalSend(c, msg, menu, cnf.FilesDir, "Ошибка: "+err.Error(), err)
@@ -384,6 +378,9 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 				return state.CurrentState, err
 			}
 		}
+	case messages.MESSAGE_TREATMENT_TO_BOT:
+	default:
+		panic(fmt.Sprintf("unexpected messages.MessageType: %#v", msg.MessageType))
 	}
 	return database.GREETINGS, errors.New("i don't know what i should do")
 }
