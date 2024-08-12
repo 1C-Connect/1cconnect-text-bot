@@ -230,19 +230,30 @@ func (msg *Message) AppointSpec(c *gin.Context, appoint_spec uuid.UUID) error {
 
 // Проверить доступен ли специалист по id
 func (msg *Message) GetSpecialistAvailable(c *gin.Context, spec_id uuid.UUID) (available bool, err error) {
+	spec_ids, err := msg.GetSpecialistsAvailable(c)
+	if err != nil {
+		return false, err
+	}
+
+	return slices.Contains(spec_ids, spec_id), err
+}
+
+// Получить список специалистов доступных по линии
+func (msg *Message) GetSpecialistsAvailable(c *gin.Context) (available []uuid.UUID, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialists/"+msg.LineId.String()+"/available/", nil, "application/json", nil)
 	if err != nil {
-		return false, err
+		return []uuid.UUID{}, err
 	}
 
 	var spec_ids []uuid.UUID
 	err = json.Unmarshal(r, &spec_ids)
 	if err != nil {
-		return false, err
+		return []uuid.UUID{}, err
 	}
-	return slices.Contains(spec_ids, spec_id), err
+
+	return spec_ids, err
 }
 
 // Перевод обращения на другую линию

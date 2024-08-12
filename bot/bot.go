@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math/rand"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -297,6 +298,38 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 					}
 					err = msg.AppointSpec(c, *btn.AppointSpecButton)
 					return database.GREETINGS, err
+				}
+				if btn.AppointSpecFromListButton != nil {
+					// получаем список свободных специалистов
+					r, err := msg.GetSpecialistsAvailable(c)
+					if err != nil || len(r) == 0 {
+						return finalSend(c, msg, menu, cnf.FilesDir, "Специалисты данной области недоступны", err)
+					}
+
+					// создаем словарь id специалистов которых мы хотели бы назначить
+					specIDs := make(map[uuid.UUID]struct{})
+					for _, id := range *btn.AppointSpecFromListButton {
+						specIDs[id] = struct{}{}
+					}
+
+					// ищем среди свободных специалистов нужных
+					neededSpec := make([]uuid.UUID, 0)
+					for i := 0; i < len(r); i++ {
+						if _, exists := specIDs[r[i]]; exists {
+							neededSpec = append(neededSpec, r[i])
+						}
+					}
+
+					// назначаем специалиста
+					lenNeededSpec := len(neededSpec)
+					if lenNeededSpec == 0 {
+						return finalSend(c, msg, menu, cnf.FilesDir, "Специалисты данной области недоступны", err)
+					} else {
+						// выбираем случайного специалиста из списка
+						randomIndex := rand.Intn(lenNeededSpec)
+						err = msg.AppointSpec(c, neededSpec[randomIndex])
+						return database.GREETINGS, err
+					}
 				}
 				if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
 					r, err := msg.GetSubscriptions(c, *btn.RerouteButton)

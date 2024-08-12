@@ -353,6 +353,19 @@ buttons:
       appoint_spec_button: bb296731-3d58-4c4a-8227-315bdc2bf3ff
 ```
 
+### Как перевести на случайного специалиста из списка
+
+```yaml
+buttons:
+  - button:
+      id: 2
+      text: 'Соединить с одним из консультантов'
+      appoint_spec_from_list_button:
+            - bb296731-3d58-4c4a-8227-315bdc2bf1ff
+            - bb296731-3d58-4c4a-8227-315bdc2bf2ff
+            - bb296731-3d58-4c4a-8227-315bdc2bf3ff
+```
+
 ### Как перевести обращение на другую линию
 
 ```yaml
