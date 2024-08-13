@@ -360,7 +360,7 @@ buttons:
   - button:
       id: 2
       text: 'Соединить с одним из консультантов'
-      appoint_spec_from_list_button:
+      appoint_random_spec_from_list_button:
             - bb296731-3d58-4c4a-8227-315bdc2bf1ff
             - bb296731-3d58-4c4a-8227-315bdc2bf2ff
             - bb296731-3d58-4c4a-8227-315bdc2bf3ff

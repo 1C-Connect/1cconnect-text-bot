@@ -179,8 +179,8 @@ func (l *Levels) checkMenus() error {
 				b.Button.SetDefault(*l.AppointSpecButton)
 				modifycatorCount++
 			}
-			if b.Button.AppointSpecFromListButton != nil && len(*b.Button.AppointSpecFromListButton) != 0 && l.AppointSpecFromListButton != nil {
-				b.Button.SetDefault(*l.AppointSpecFromListButton)
+			if b.Button.AppointRandomSpecFromListButton != nil && len(*b.Button.AppointRandomSpecFromListButton) != 0 && l.AppointRandomSpecFromListButton != nil {
+				b.Button.SetDefault(*l.AppointRandomSpecFromListButton)
 				modifycatorCount++
 			}
 			if b.Button.RerouteButton != nil && *b.Button.RerouteButton != uuid.Nil && l.RerouteButton != nil {

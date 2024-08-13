@@ -299,7 +299,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 					err = msg.AppointSpec(c, *btn.AppointSpecButton)
 					return database.GREETINGS, err
 				}
-				if btn.AppointSpecFromListButton != nil {
+				if btn.AppointRandomSpecFromListButton != nil && len(*btn.AppointRandomSpecFromListButton) != 0 {
 					// получаем список свободных специалистов
 					r, err := msg.GetSpecialistsAvailable(c)
 					if err != nil || len(r) == 0 {
@@ -308,7 +308,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 
 					// создаем словарь id специалистов которых мы хотели бы назначить
 					specIDs := make(map[uuid.UUID]struct{})
-					for _, id := range *btn.AppointSpecFromListButton {
+					for _, id := range *btn.AppointRandomSpecFromListButton {
 						specIDs[id] = struct{}{}
 					}
 
