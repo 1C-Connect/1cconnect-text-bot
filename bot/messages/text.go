@@ -232,28 +232,23 @@ func (msg *Message) AppointSpec(c *gin.Context, appoint_spec uuid.UUID) error {
 func (msg *Message) GetSpecialistAvailable(c *gin.Context, spec_id uuid.UUID) (available bool, err error) {
 	spec_ids, err := msg.GetSpecialistsAvailable(c)
 	if err != nil {
-		return false, err
+		return
 	}
 
 	return slices.Contains(spec_ids, spec_id), err
 }
 
 // Получить список специалистов доступных по линии
-func (msg *Message) GetSpecialistsAvailable(c *gin.Context) (available []uuid.UUID, err error) {
+func (msg *Message) GetSpecialistsAvailable(c *gin.Context) (spec_ids []uuid.UUID, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialists/"+msg.LineId.String()+"/available/", nil, "application/json", nil)
 	if err != nil {
-		return []uuid.UUID{}, err
+		return
 	}
 
-	var spec_ids []uuid.UUID
 	err = json.Unmarshal(r, &spec_ids)
-	if err != nil {
-		return []uuid.UUID{}, err
-	}
-
-	return spec_ids, err
+	return
 }
 
 // Перевод обращения на другую линию
@@ -281,11 +276,11 @@ func (msg *Message) GetSubscriber(c *gin.Context) (content requests.User, err er
 	cnf := c.MustGet("cnf").(*config.Conf)
 	r, err := client.Invoke(cnf, http.MethodGet, "/line/subscriber/"+msg.UserId.String()+"/", nil, "application/json", nil)
 	if err != nil {
-		return requests.User{}, err
+		return
 	}
-	var d requests.User
-	err = json.Unmarshal(r, &d)
-	return d, err
+
+	err = json.Unmarshal(r, &content)
+	return
 }
 
 // Получение списка линий, подключенных пользователям
@@ -297,11 +292,11 @@ func (msg *Message) GetSubscriptions(c *gin.Context, line_id uuid.UUID) (content
 
 	r, err := client.Invoke(cnf, http.MethodGet, "/line/subscriptions/", v, "application/json", nil)
 	if err != nil {
-		return requests.Subscriptions{}, err
+		return
 	}
-	var d requests.Subscriptions
-	err = json.Unmarshal(r, &d)
-	return d, err
+
+	err = json.Unmarshal(r, &content)
+	return
 }
 
 // Получение информации о специалисте
@@ -309,12 +304,11 @@ func (msg *Message) GetSpecialist(c *gin.Context, spec_id uuid.UUID) (content re
 	cnf := c.MustGet("cnf").(*config.Conf)
 	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialist/"+spec_id.String()+"/", nil, "application/json", nil)
 	if err != nil {
-		return requests.User{}, err
+		return
 	}
-	var d requests.User
-	err = json.Unmarshal(r, &d)
-	return d, err
 
+	err = json.Unmarshal(r, &content)
+	return
 }
 
 // Метод позволяет отправить файл или изображение в чат
