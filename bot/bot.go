@@ -320,16 +320,16 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 						}
 					}
 
-					// назначаем специалиста
+					// проверяем есть ли хотябы 1 свободный специалист
 					lenNeededSpec := len(neededSpec)
 					if lenNeededSpec == 0 {
 						return finalSend(c, msg, menu, cnf.FilesDir, "Специалисты данной области недоступны", err)
-					} else {
-						// выбираем случайного специалиста из списка
-						randomIndex := rand.Intn(lenNeededSpec)
-						err = msg.AppointSpec(c, neededSpec[randomIndex])
-						return database.GREETINGS, err
 					}
+
+					// назначаем случайного специалиста из списка
+					randomIndex := rand.Intn(lenNeededSpec)
+					err = msg.AppointSpec(c, neededSpec[randomIndex])
+					return database.GREETINGS, err
 				}
 				if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
 					r, err := msg.GetSubscriptions(c, *btn.RerouteButton)
