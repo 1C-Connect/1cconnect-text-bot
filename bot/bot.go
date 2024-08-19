@@ -327,7 +327,10 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 					}
 
 					// назначаем случайного специалиста из списка
-					randomIndex := rand.Intn(lenNeededSpec)
+					seed := time.Now().UnixNano()
+					rns := rand.NewSource(seed)
+					rng := rand.New(rns)
+					randomIndex := rng.Intn(lenNeededSpec)
 					err = msg.AppointSpec(c, neededSpec[randomIndex])
 					return database.GREETINGS, err
 				}
