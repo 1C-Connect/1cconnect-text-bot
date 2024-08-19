@@ -107,7 +107,7 @@ func nestedToFlat(main *Levels, nested *Levels) (err error) {
 		for _, b := range v.Buttons {
 			if b.Button.NestedMenu != nil {
 				if b.Button.NestedMenu.ID == "" {
-					return fmt.Errorf("у вложенного уровня отсутсвует id %#v", b.Button)
+					return fmt.Errorf("у вложенного уровня отсутствует id %#v", b.Button)
 				}
 				if _, ok := main.Menu[b.Button.NestedMenu.ID]; !ok && b.Button.NestedMenu.ID != "" {
 					menu := &Menu{

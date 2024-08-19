@@ -320,7 +320,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 						}
 					}
 
-					// проверяем есть ли хотябы 1 свободный специалист
+					// проверяем есть ли хотя бы 1 свободный специалист
 					lenNeededSpec := len(neededSpec)
 					if lenNeededSpec == 0 {
 						return finalSend(c, msg, menu, cnf.FilesDir, "Специалисты данной области недоступны", err)
