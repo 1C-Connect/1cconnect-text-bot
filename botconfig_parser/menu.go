@@ -7,13 +7,14 @@ type Levels struct {
 
 	UseQNA QNA `yaml:"use_qna"`
 
-	BackButton                      *Button `yaml:"back_button"`
-	CloseButton                     *Button `yaml:"close_button"`
-	RedirectButton                  *Button `yaml:"redirect_button"`
-	AppointSpecButton               *Button `yaml:"appoint_spec_button"`
-	AppointRandomSpecFromListButton *Button `yaml:"appoint_random_spec_from_list_button"`
-	RerouteButton                   *Button `yaml:"reroute_button"`
-	ExecButton                      *Button `yaml:"exec_button"`
+	BackButton                      *Button    `yaml:"back_button"`
+	CloseButton                     *Button    `yaml:"close_button"`
+	RedirectButton                  *Button    `yaml:"redirect_button"`
+	AppointSpecButton               *Button    `yaml:"appoint_spec_button"`
+	AppointRandomSpecFromListButton *Button    `yaml:"appoint_random_spec_from_list_button"`
+	RerouteButton                   *Button    `yaml:"reroute_button"`
+	ExecButton                      *Button    `yaml:"exec_button"`
+	SaveToVar                       *SaveToVar `yaml:"save_to_var"`
 
 	ErrorMessage    string `yaml:"error_message"`
 	GreetingMessage string `yaml:"greeting_message"`
@@ -73,10 +74,22 @@ type Button struct {
 	RerouteButton *uuid.UUID `yaml:"reroute_button,omitempty"`
 	// Выполнить команду на стороне сервера
 	ExecButton string `yaml:"exec_button,omitempty"`
+	// получить и сохранить текст введенный пользователем
+	SaveToVar *SaveToVar `yaml:"save_to_var,omitempty"`
 	// перейти в меню
 	Goto string `yaml:"goto"`
 	// вложенное меню
 	NestedMenu *NestedMenu `yaml:"menu"`
+}
+
+type SaveToVar struct {
+	// имя переменной в которую будет сохранено сообщение пользователя
+	VarName string `yaml:"var_name"`
+	// сообщение при нажатие на кнопку
+	SendText *string `yaml:"send_text,omitempty"`
+
+	// после получения сообщения пользователя выполнить действие по кнопке
+	DoButton *Button `yaml:"do_button,omitempty"`
 }
 
 // применить настройки "по умолчанию" для кнопки
