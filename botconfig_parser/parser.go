@@ -94,6 +94,17 @@ func defaultFailQnaMenu() *Menu {
 	}
 }
 
+func defaultWaitSendMenu() *Menu {
+	return &Menu{
+		Answer: []*Answer{
+			{Chat: "Введите ваше значение"},
+		},
+		Buttons: []*Buttons{
+			{Button{ButtonID: "1", ButtonText: "Отмена", BackButton: true}},
+		},
+	}
+}
+
 func CopyMap(m map[string]*Menu) map[string]*Menu {
 	cp := make(map[string]*Menu)
 	for k, v := range m {
@@ -144,6 +155,9 @@ func (l *Levels) checkMenus() error {
 	if _, ok := l.Menu[database.FINAL]; !ok {
 		l.Menu[database.FINAL] = defaultFinalMenu()
 	}
+	if _, ok := l.Menu[database.WAIT_SEND]; !ok {
+		l.Menu[database.WAIT_SEND] = defaultWaitSendMenu()
+	}
 	if l.UseQNA.Enabled {
 		if _, ok := l.Menu[database.FAIL_QNA]; !ok {
 			l.Menu[database.FAIL_QNA] = defaultFailQnaMenu()
@@ -163,6 +177,13 @@ func (l *Levels) checkMenus() error {
 		for _, b := range v.Buttons {
 			// Если кнопка CLOSE | REDIRECT | ... | BACK то применяем к ней дефолтные настройки
 			var modifycatorCount = 0
+			if b.Button.SaveSaid != nil {
+				if b.Button.SaveSaid.SaveToVar == database.VAR_FOR_SAVE || b.Button.SaveSaid.SaveToVar == database.VAR_FOR_GOTO {
+					return fmt.Errorf("используется зарезервированное имя переменной %s %#v", k, b)
+				}
+				modifycatorCount++
+			}
+
 			if b.Button.CloseButton && l.CloseButton != nil {
 				b.Button.SetDefault(*l.CloseButton)
 				modifycatorCount++

@@ -62,6 +62,31 @@ func Receive(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+func changeVars(c *gin.Context, msg *messages.Message, chatState *database.Chat, key, value string) error {
+	cache := c.MustGet("cache").(*bigcache.BigCache)
+
+	if chatState.Vars == nil {
+		chatState.Vars = make(map[string]string)
+	}
+	chatState.Vars[key] = value
+
+	data, err := json.Marshal(chatState)
+	if err != nil {
+		logger.Warning("Error while change state to cache", err)
+		return err
+	}
+
+	dbStateKey := msg.UserId.String() + ":" + msg.LineId.String()
+
+	err = cache.Set(dbStateKey, data)
+	logger.Debug("Write state to cache result")
+	if err != nil {
+		logger.Warning("Error while write state to cache", err)
+	}
+
+	return nil
+}
+
 func changeState(c *gin.Context, msg *messages.Message, chatState *database.Chat, toState string) error {
 	cache := c.MustGet("cache").(*bigcache.BigCache)
 
@@ -240,6 +265,25 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 			}
 			SendAnswer(c, msg, menu, database.START, cnf.FilesDir)
 			return database.START, nil
+		case database.WAIT_SEND:
+			state := getState(c, msg)
+			currentMenu := state.CurrentState
+			goTo := state.Vars[database.VAR_FOR_GOTO]
+
+			btn := menu.GetButton(currentMenu, text)
+			if btn != nil && btn.BackButton {
+				if state.PreviousState != database.GREETINGS {
+					goTo = state.PreviousState
+				} else {
+					goTo = database.START
+				}
+			}
+
+			changeVars(c, msg, chatState, state.Vars[database.VAR_FOR_SAVE], msg.Text)
+
+			// Сообщения при переходе на новое меню.
+			SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+			return goTo, err
 		default:
 			state := getState(c, msg)
 			currentMenu := state.CurrentState
@@ -362,9 +406,18 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
 					}
 
+					// создаем объединенные данные
+					combinedData := struct {
+						User requests.User
+						Var  map[string]string
+					}{
+						User: userData,
+						Var:  state.Vars,
+					}
+
 					// заполняем шаблон
 					var templOutput bytes.Buffer
-					err = templ.Execute(&templOutput, userData)
+					err = templ.Execute(&templOutput, combinedData)
 					if err != nil {
 						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
 					}
@@ -381,6 +434,23 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *database.C
 					msg.Send(c, string(cmdOutput), nil)
 					goTo := database.FINAL
 					SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+					return goTo, err
+				}
+				if btn.SaveSaid != nil {
+					// Сообщаем пользователю что требуем и запускаем ожидание данных
+					goTo := database.WAIT_SEND
+					if btn.SaveSaid.SendText != nil && *btn.SaveSaid.SendText != "" {
+						msg.Send(c, *btn.SaveSaid.SendText, menu.GenKeyboard(goTo))
+					} else {
+						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+					}
+
+					// сохраняем данные для последующей операции
+					err := changeVars(c, msg, chatState, database.VAR_FOR_SAVE, btn.SaveSaid.SaveToVar)
+					if err != nil {
+						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
+					}
+					err = changeVars(c, msg, chatState, database.VAR_FOR_GOTO, btn.SaveSaid.Goto)
 					return goTo, err
 				}
 

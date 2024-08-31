@@ -77,6 +77,18 @@ type Button struct {
 	Goto string `yaml:"goto"`
 	// вложенное меню
 	NestedMenu *NestedMenu `yaml:"menu"`
+
+	// получить и сохранить текст введенный пользователем
+	SaveSaid *SaveSaid `yaml:"save_said"`
+}
+
+type SaveSaid struct {
+	// переменная в которую будет сохранено
+	SaveToVar string `yaml:"save_to_var"`
+	// сообщение при нажатие
+	SendText *string `yaml:"send_text,omitempty"`
+	// перейти в меню
+	Goto string `yaml:"goto"`
 }
 
 // применить настройки "по умолчанию" для кнопки
