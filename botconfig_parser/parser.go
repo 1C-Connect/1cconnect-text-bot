@@ -170,64 +170,115 @@ func (l *Levels) checkMenus() error {
 		l.GreetingMessage = "Здравствуйте."
 	}
 
+	// проверка меню и подуровней
 	for k, v := range l.Menu {
 		if len(v.Buttons) == 0 {
 			return fmt.Errorf("отсутствуют кнопки: %s %#v", k, v)
 		}
-		for _, b := range v.Buttons {
-			// Если кнопка CLOSE | REDIRECT | ... | BACK то применяем к ней дефолтные настройки
-			var modifycatorCount = 0
-			if b.Button.SaveSaid != nil {
-				if b.Button.SaveSaid.SaveToVar == database.VAR_FOR_SAVE || b.Button.SaveSaid.SaveToVar == database.VAR_FOR_GOTO {
-					return fmt.Errorf("используется зарезервированное имя переменной %s %#v", k, b)
-				}
-				modifycatorCount++
-			}
 
-			if b.Button.CloseButton && l.CloseButton != nil {
-				b.Button.SetDefault(*l.CloseButton)
-				modifycatorCount++
-			}
-			if b.Button.RedirectButton && l.RedirectButton != nil {
-				b.Button.SetDefault(*l.RedirectButton)
-				modifycatorCount++
-			}
-			if b.Button.BackButton && l.BackButton != nil {
-				b.Button.SetDefault(*l.BackButton)
-				modifycatorCount++
-			}
-			if b.Button.AppointSpecButton != nil && *b.Button.AppointSpecButton != uuid.Nil && l.AppointSpecButton != nil {
-				b.Button.SetDefault(*l.AppointSpecButton)
-				modifycatorCount++
-			}
-			if b.Button.AppointRandomSpecFromListButton != nil && len(*b.Button.AppointRandomSpecFromListButton) != 0 && l.AppointRandomSpecFromListButton != nil {
-				b.Button.SetDefault(*l.AppointRandomSpecFromListButton)
-				modifycatorCount++
-			}
-			if b.Button.RerouteButton != nil && *b.Button.RerouteButton != uuid.Nil && l.RerouteButton != nil {
-				b.Button.SetDefault(*l.RerouteButton)
-				modifycatorCount++
-			}
-			if b.Button.ExecButton != "" && l.ExecButton != nil {
-				b.Button.SetDefault(*l.ExecButton)
-			}
+		err := l.checkMenuLevels(v.Buttons, k, v, 1)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-			if modifycatorCount > 1 {
-				return fmt.Errorf("кнопка может иметь только один модификатор: %s %#v", k, b)
+// рекурсивная проверка меню и подуровней
+func (l *Levels) checkMenuLevels(buttons []*Buttons, k string, v *Menu, depthLevel int) error {
+	for _, b := range buttons {
+		err := l.checkButton(b, k, v, depthLevel)
+		if err != nil {
+			return err
+		}
+
+		if b.Button.NestedMenu != nil && b.Button.NestedMenu.Buttons != nil {
+			err := l.checkMenuLevels(b.Button.NestedMenu.Buttons, k, v, depthLevel+1)
+			if err != nil {
+				return err
 			}
-			if b.Button.Goto != "" && b.Button.BackButton {
-				return fmt.Errorf("back_button не может иметь goto: %s %#v", k, b)
-			}
+		}
+
+		/*
 			if _, ok := l.Menu[b.Button.Goto]; !ok && !b.Button.BackButton && !b.Button.CloseButton && !b.Button.RedirectButton {
 				return fmt.Errorf("кнопка ведет на несуществующий уровень: %s %#v", k, b)
 			}
-			if len(v.Answer) == 0 || !IsAnyAnswer(v.Answer) {
-				return fmt.Errorf("отсутствует сообщение сопровождающее меню: %s", k)
-			}
-			if b.Button.ButtonText == "" {
-				return fmt.Errorf("текст у кнопки не может быть пустой %s %#v", k, b)
+		*/
+		// код ниже проваливается при выполнение проверки представленной выше
+		// ошибка вылетает из-за того что b.Button.Goto = ""
+		// для исправления было заменено условие на:
+		// if _, ok := l.Menu[b.Button.Goto]; b.Button.Goto != "" && !ok {
+		if b.Button.SaveToVar != nil && b.Button.SaveToVar.DoButton != nil {
+			err := l.checkMenuLevels([]*Buttons{{Button: *b.Button.SaveToVar.DoButton}}, k, v, depthLevel+1)
+			if err != nil {
+				return err
 			}
 		}
+	}
+	return nil
+}
+
+// проверка кнопки на валидность
+func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) error {
+	// Если кнопка CLOSE | REDIRECT | ... | BACK то применяем к ней дефолтные настройки
+	var modifycatorCount = 0
+	if b.Button.SaveToVar != nil {
+		if b.Button.SaveToVar.VarName == database.VAR_FOR_SAVE || b.Button.SaveToVar.VarName == database.VAR_FOR_GOTO {
+			return fmt.Errorf("используется зарезервированное имя переменной %s %#v lvl:%d", k, b, depthLevel)
+		}
+		if b.Button.SaveToVar.Goto != "" && b.Button.SaveToVar.DoButton != nil {
+			return fmt.Errorf("do_button не может использоваться вместе с goto: %s %#v lvl:%d", k, b, depthLevel)
+		}
+		if b.Button.SaveToVar.Goto == "" && b.Button.SaveToVar.DoButton == nil {
+			return fmt.Errorf("отсутствует модификатор кнопки do_button или goto: %s %#v lvl:%d", k, b, depthLevel)
+		}
+		modifycatorCount++
+	}
+
+	if b.Button.CloseButton && l.CloseButton != nil {
+		b.Button.SetDefault(*l.CloseButton)
+		modifycatorCount++
+	}
+	if b.Button.RedirectButton && l.RedirectButton != nil {
+		b.Button.SetDefault(*l.RedirectButton)
+		modifycatorCount++
+	}
+	if b.Button.BackButton && l.BackButton != nil {
+		b.Button.SetDefault(*l.BackButton)
+		modifycatorCount++
+	}
+	if b.Button.AppointSpecButton != nil && *b.Button.AppointSpecButton != uuid.Nil && l.AppointSpecButton != nil {
+		b.Button.SetDefault(*l.AppointSpecButton)
+		modifycatorCount++
+	}
+	if b.Button.AppointRandomSpecFromListButton != nil && len(*b.Button.AppointRandomSpecFromListButton) != 0 && l.AppointRandomSpecFromListButton != nil {
+		b.Button.SetDefault(*l.AppointRandomSpecFromListButton)
+		modifycatorCount++
+	}
+	if b.Button.RerouteButton != nil && *b.Button.RerouteButton != uuid.Nil && l.RerouteButton != nil {
+		b.Button.SetDefault(*l.RerouteButton)
+		modifycatorCount++
+	}
+	if b.Button.ExecButton != "" && l.ExecButton != nil {
+		b.Button.SetDefault(*l.ExecButton)
+		modifycatorCount++
+	}
+
+	if modifycatorCount > 1 {
+		return fmt.Errorf("кнопка может иметь только один модификатор: %s %#v lvl:%d", k, b, depthLevel)
+	}
+	if b.Button.Goto != "" && b.Button.BackButton {
+		return fmt.Errorf("back_button не может иметь goto: %s %#v lvl:%d", k, b, depthLevel)
+	}
+	// if _, ok := l.Menu[b.Button.Goto]; !ok && !b.Button.BackButton && !b.Button.CloseButton && !b.Button.RedirectButton {
+	if _, ok := l.Menu[b.Button.Goto]; b.Button.Goto != "" && !ok {
+		return fmt.Errorf("кнопка ведет на несуществующий уровень: %s %#v lvl:%d", k, b, depthLevel)
+	}
+	if len(v.Answer) == 0 || !IsAnyAnswer(v.Answer) {
+		return fmt.Errorf("отсутствует сообщение сопровождающее меню: %s lvl:%d", k, depthLevel)
+	}
+	if b.Button.SaveToVar == nil && b.Button.ButtonText == "" {
+		return fmt.Errorf("текст у кнопки не может быть пустой %s %#v lvl:%d", k, b, depthLevel)
 	}
 	return nil
 }

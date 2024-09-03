@@ -1,13 +1,5 @@
 package database
 
-type (
-	Chat struct {
-		PreviousState string            `json:"prev_state" binding:"required" example:"100"`
-		CurrentState  string            `json:"curr_state" binding:"required" example:"300"`
-		Vars          map[string]string `json:"vars" binding:"omitempty"`
-	}
-)
-
 const (
 	GREETINGS = "greetings"
 	START     = "start"
