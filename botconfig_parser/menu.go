@@ -88,8 +88,6 @@ type SaveToVar struct {
 	// сообщение при нажатие на кнопку
 	SendText *string `yaml:"send_text,omitempty"`
 
-	// после получения сообщения пользователя перейти в указанное меню
-	Goto string `yaml:"goto,omitempty"`
 	// после получения сообщения пользователя выполнить действие по кнопке
 	DoButton *Button `yaml:"do_button,omitempty"`
 }

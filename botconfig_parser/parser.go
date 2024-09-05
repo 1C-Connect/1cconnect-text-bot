@@ -199,16 +199,22 @@ func (l *Levels) checkMenuLevels(buttons []*Buttons, k string, v *Menu, depthLev
 			}
 		}
 
-		/*
-			if _, ok := l.Menu[b.Button.Goto]; !ok && !b.Button.BackButton && !b.Button.CloseButton && !b.Button.RedirectButton {
-				return fmt.Errorf("кнопка ведет на несуществующий уровень: %s %#v", k, b)
-			}
-		*/
-		// код ниже проваливается при выполнение проверки представленной выше
-		// ошибка вылетает из-за того что b.Button.Goto = ""
-		// для исправления было заменено условие на:
-		// if _, ok := l.Menu[b.Button.Goto]; b.Button.Goto != "" && !ok {
 		if b.Button.SaveToVar != nil && b.Button.SaveToVar.DoButton != nil {
+			// задаем дефолтные настройки если кнопка не имеет дочерних кнопок
+			btn := b.Button.SaveToVar.DoButton
+			if btn.SaveToVar == nil {
+				// задаем заглушку чтобы пропустить ошибку "текст у кнопки не может быть пустой"
+				// используем ее тк она используется только для checkButton
+				if btn.ButtonText == "" {
+					b.Button.SaveToVar.DoButton.ButtonText = "<do_button>"
+				}
+
+				// добавляем goto на Final если меню не имеет продолжение
+				if btn.NestedMenu == nil && !btn.BackButton && k != database.FINAL && btn.Goto == "" {
+					b.Button.SaveToVar.DoButton.Goto = database.FINAL
+				}
+			}
+
 			err := l.checkMenuLevels([]*Buttons{{Button: *b.Button.SaveToVar.DoButton}}, k, v, depthLevel+1)
 			if err != nil {
 				return err
@@ -223,14 +229,20 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 	// Если кнопка CLOSE | REDIRECT | ... | BACK то применяем к ней дефолтные настройки
 	var modifycatorCount = 0
 	if b.Button.SaveToVar != nil {
-		if b.Button.SaveToVar.VarName == database.VAR_FOR_SAVE || b.Button.SaveToVar.VarName == database.VAR_FOR_GOTO {
+		if b.Button.SaveToVar.VarName == "" {
+			return fmt.Errorf("отсутствует var_name (имя переменной для сохранения данных): %s %#v lvl:%d", k, b, depthLevel)
+		}
+		if b.Button.SaveToVar.VarName == database.VAR_FOR_SAVE {
 			return fmt.Errorf("используется зарезервированное имя переменной %s %#v lvl:%d", k, b, depthLevel)
 		}
-		if b.Button.SaveToVar.Goto != "" && b.Button.SaveToVar.DoButton != nil {
-			return fmt.Errorf("do_button не может использоваться вместе с goto: %s %#v lvl:%d", k, b, depthLevel)
+		if b.Button.SaveToVar.DoButton == nil {
+			return fmt.Errorf("отсутствует do_button (действие которое выполнится после ответа пользователя): %s %#v lvl:%d", k, b, depthLevel)
 		}
-		if b.Button.SaveToVar.Goto == "" && b.Button.SaveToVar.DoButton == nil {
-			return fmt.Errorf("отсутствует модификатор кнопки do_button или goto: %s %#v lvl:%d", k, b, depthLevel)
+		if b.Button.SaveToVar.DoButton.BackButton {
+			return fmt.Errorf("в do_button нельзя использовать back_button: %s %#v lvl:%d", k, b, depthLevel)
+		}
+		if b.Button.SaveToVar.DoButton.NestedMenu != nil {
+			return fmt.Errorf("в do_button не работает menu: %s %#v lvl:%d", k, b, depthLevel)
 		}
 		modifycatorCount++
 	}
@@ -270,7 +282,6 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 	if b.Button.Goto != "" && b.Button.BackButton {
 		return fmt.Errorf("back_button не может иметь goto: %s %#v lvl:%d", k, b, depthLevel)
 	}
-	// if _, ok := l.Menu[b.Button.Goto]; !ok && !b.Button.BackButton && !b.Button.CloseButton && !b.Button.RedirectButton {
 	if _, ok := l.Menu[b.Button.Goto]; b.Button.Goto != "" && !ok {
 		return fmt.Errorf("кнопка ведет на несуществующий уровень: %s %#v lvl:%d", k, b, depthLevel)
 	}

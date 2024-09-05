@@ -160,7 +160,6 @@ func getCacheVar(c *gin.Context, msg *messages.Message, varName string) (string,
 // чистим необязательные поля хранимых данных
 func clearCacheOmitemptyFields(c *gin.Context, msg *messages.Message, chatState *Chat) error {
 	chatState.Vars[database.VAR_FOR_SAVE] = ""
-	chatState.Vars[database.VAR_FOR_GOTO] = ""
 	chatState.DoButton = nil
 
 	return changeCache(c, msg, chatState)
@@ -336,7 +335,6 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 		// пользователь попадет сюда в случае перехода в режим ожидания сообщения
 		case database.WAIT_SEND:
 			state := getState(c, msg)
-			goTo, _ := getCacheVar(c, msg, database.VAR_FOR_GOTO)
 
 			// записываем введенные данные в переменную
 			varName, ok := getCacheVar(c, msg, database.VAR_FOR_SAVE)
@@ -346,6 +344,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 			// проверяем если выбрано "Отмена" и определяем куда должно вернуть
 			btn := menu.GetButton(state.CurrentState, text)
+			goTo := ""
 			if btn != nil && btn.BackButton {
 				if state.PreviousState != database.GREETINGS {
 					goTo = state.PreviousState
@@ -354,7 +353,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				}
 			}
 
-			// переходим на меню которое указано в свойстве "goto" или на меню по кнопке "Отмена"
+			// переходим если нажата кнопка "Отмена"
 			if goTo != "" {
 				// чистим данные
 				err = clearCacheOmitemptyFields(c, msg, chatState)
@@ -362,12 +361,11 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					return finalSend(c, msg, menu, cnf.FilesDir, "", err)
 				}
 
-				// Сообщения при переходе на новое меню.
 				SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
 				return goTo, err
 			}
 
-			// если не выполняется goto то нужно выполнить действие кнопки
+			// выполнить действие кнопки
 			err = changeCacheState(c, msg, chatState, database.START)
 			if err != nil {
 				logger.Warning("Error changeState", err)
@@ -542,14 +540,6 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					err := changeCacheVars(c, msg, chatState, database.VAR_FOR_SAVE, btn.SaveToVar.VarName)
 					if err != nil {
 						return finalSend(c, msg, menu, cnf.FilesDir, "", err)
-					}
-
-					// сохраняем имя куда выполнить goto после завершения
-					if btn.SaveToVar.Goto != "" {
-						err = changeCacheVars(c, msg, chatState, database.VAR_FOR_GOTO, btn.SaveToVar.Goto)
-						if err != nil {
-							return finalSend(c, msg, menu, cnf.FilesDir, "", err)
-						}
 					}
 
 					// сохраняем ссылку на кнопку которая будет выполнена после завершения
