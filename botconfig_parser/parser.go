@@ -61,8 +61,11 @@ func loadMenus(path string) (*Levels, error) {
 	if err := yaml.Unmarshal(input, &menu); err != nil {
 		return nil, err
 	}
-	if err := nestedToFlat(menu, &Levels{Menu: CopyMap(menu.Menu)}); err != nil {
-		return nil, err
+	for k, v := range CopyMap(menu.Menu) {
+		err := nestedToFlat(menu, v.Buttons, k, 1)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return menu, menu.checkMenus()
@@ -113,39 +116,44 @@ func CopyMap(m map[string]*Menu) map[string]*Menu {
 	return cp
 }
 
-func nestedToFlat(main *Levels, nested *Levels) (err error) {
-	for k, v := range nested.Menu {
-		for _, b := range v.Buttons {
-			if b.Button.NestedMenu != nil {
-				if b.Button.NestedMenu.ID == "" {
-					return fmt.Errorf("у вложенного уровня отсутствует id %#v", b.Button)
-				}
-				if _, ok := main.Menu[b.Button.NestedMenu.ID]; !ok && b.Button.NestedMenu.ID != "" {
-					menu := &Menu{
-						Answer:  b.Button.NestedMenu.Answer,
-						Buttons: b.Button.NestedMenu.Buttons,
+func nestedToFlat(main *Levels, buttons []*Buttons, k string, depthLevel int) error {
+	for _, b := range buttons {
+		// добавляем goto на Final если меню не имеет продолжение
+		if b.Button.SaveToVar == nil && b.Button.NestedMenu == nil && !b.Button.BackButton && k != database.FINAL && b.Button.Goto == "" {
+			b.Button.Goto = database.FINAL
+		}
 
-						QnaDisable: b.Button.NestedMenu.QnaDisable,
-					}
-
-					main.Menu[b.Button.NestedMenu.ID] = menu
-					b.Button.Goto = b.Button.NestedMenu.ID
-
-					err = nestedToFlat(main, &Levels{Menu: map[string]*Menu{b.Button.NestedMenu.ID: menu}})
-					if err != nil {
-						return
-					}
-				} else {
-					return fmt.Errorf("duplicate keys: %s", b.Button.NestedMenu.ID)
+		if b.Button.NestedMenu != nil {
+			if b.Button.NestedMenu.Buttons != nil {
+				err := nestedToFlat(main, b.Button.NestedMenu.Buttons, k, depthLevel+1)
+				if err != nil {
+					return err
 				}
 			}
-			if b.Button.NestedMenu == nil && !b.Button.BackButton && k != database.FINAL && b.Button.Goto == "" {
-				b.Button.Goto = database.FINAL
-				continue
+
+			if b.Button.NestedMenu.ID == "" {
+				return fmt.Errorf("отсутствует id у вложенного меню: %s %#v lvl:%d", k, b, depthLevel)
+			}
+			if _, exist := main.Menu[b.Button.NestedMenu.ID]; exist && b.Button.NestedMenu.ID != "" {
+				return fmt.Errorf("уже существует меню с данным id(%s): %s %#v lvl:%d", b.Button.NestedMenu.ID, k, b, depthLevel)
+			}
+			menu := &Menu{
+				Answer:     b.Button.NestedMenu.Answer,
+				Buttons:    b.Button.NestedMenu.Buttons,
+				QnaDisable: b.Button.NestedMenu.QnaDisable,
+			}
+			main.Menu[b.Button.NestedMenu.ID] = menu
+			b.Button.Goto = b.Button.NestedMenu.ID
+		}
+
+		if b.Button.SaveToVar != nil && b.Button.SaveToVar.DoButton != nil {
+			err := nestedToFlat(main, []*Buttons{{Button: *b.Button.SaveToVar.DoButton}}, k, depthLevel+1)
+			if err != nil {
+				return err
 			}
 		}
 	}
-	return
+	return nil
 }
 
 func (l *Levels) checkMenus() error {
@@ -208,11 +216,10 @@ func (l *Levels) checkMenuLevels(buttons []*Buttons, k string, v *Menu, depthLev
 				if btn.ButtonText == "" {
 					b.Button.SaveToVar.DoButton.ButtonText = "<do_button>"
 				}
+			}
 
-				// добавляем goto на Final если меню не имеет продолжение
-				if btn.NestedMenu == nil && !btn.BackButton && k != database.FINAL && btn.Goto == "" {
-					b.Button.SaveToVar.DoButton.Goto = database.FINAL
-				}
+			if btn.NestedMenu != nil {
+				b.Button.SaveToVar.DoButton.Goto = btn.NestedMenu.ID
 			}
 
 			err := l.checkMenuLevels([]*Buttons{{Button: *b.Button.SaveToVar.DoButton}}, k, v, depthLevel+1)
@@ -228,6 +235,7 @@ func (l *Levels) checkMenuLevels(buttons []*Buttons, k string, v *Menu, depthLev
 func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) error {
 	// Если кнопка CLOSE | REDIRECT | ... | BACK то применяем к ней дефолтные настройки
 	var modifycatorCount = 0
+
 	if b.Button.SaveToVar != nil {
 		if b.Button.SaveToVar.VarName == "" {
 			return fmt.Errorf("отсутствует var_name (имя переменной для сохранения данных): %s %#v lvl:%d", k, b, depthLevel)
@@ -240,9 +248,6 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 		}
 		if b.Button.SaveToVar.DoButton.BackButton {
 			return fmt.Errorf("в do_button нельзя использовать back_button: %s %#v lvl:%d", k, b, depthLevel)
-		}
-		if b.Button.SaveToVar.DoButton.NestedMenu != nil {
-			return fmt.Errorf("в do_button не работает menu: %s %#v lvl:%d", k, b, depthLevel)
 		}
 		modifycatorCount++
 	}
