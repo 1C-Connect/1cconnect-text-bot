@@ -147,6 +147,20 @@ func nestedToFlat(main *Levels, buttons []*Buttons, k string, depthLevel int) er
 		}
 
 		if b.Button.SaveToVar != nil && b.Button.SaveToVar.DoButton != nil {
+			// задаем дефолтные настройки если кнопка не имеет дочерних кнопок
+			btn := b.Button.SaveToVar.DoButton
+			if btn.SaveToVar == nil {
+				// задаем заглушку чтобы пропустить ошибку "текст у кнопки не может быть пустой"
+				// используем ее тк она используется только для checkButton
+				if btn.ButtonText == "" {
+					b.Button.SaveToVar.DoButton.ButtonText = "<do_button>"
+				}
+			}
+
+			if btn.NestedMenu != nil {
+				b.Button.SaveToVar.DoButton.Goto = btn.NestedMenu.ID
+			}
+
 			err := nestedToFlat(main, []*Buttons{{Button: *b.Button.SaveToVar.DoButton}}, k, depthLevel+1)
 			if err != nil {
 				return err
@@ -208,20 +222,6 @@ func (l *Levels) checkMenuLevels(buttons []*Buttons, k string, v *Menu, depthLev
 		}
 
 		if b.Button.SaveToVar != nil && b.Button.SaveToVar.DoButton != nil {
-			// задаем дефолтные настройки если кнопка не имеет дочерних кнопок
-			btn := b.Button.SaveToVar.DoButton
-			if btn.SaveToVar == nil {
-				// задаем заглушку чтобы пропустить ошибку "текст у кнопки не может быть пустой"
-				// используем ее тк она используется только для checkButton
-				if btn.ButtonText == "" {
-					b.Button.SaveToVar.DoButton.ButtonText = "<do_button>"
-				}
-			}
-
-			if btn.NestedMenu != nil {
-				b.Button.SaveToVar.DoButton.Goto = btn.NestedMenu.ID
-			}
-
 			err := l.checkMenuLevels([]*Buttons{{Button: *b.Button.SaveToVar.DoButton}}, k, v, depthLevel+1)
 			if err != nil {
 				return err
