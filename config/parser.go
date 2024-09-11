@@ -5,7 +5,7 @@ import (
 
 	"connect-text-bot/logger"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 const CONNECT_SERVER = "https://push.1c-connect.com"

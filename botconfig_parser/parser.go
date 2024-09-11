@@ -1,8 +1,10 @@
 package botconfig_parser
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"path"
 	"strings"
 	"sync"
 
@@ -12,7 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gopkg.in/yaml.v3"
+
+	"github.com/goccy/go-yaml"
 )
 
 var lock = &sync.RWMutex{}
@@ -53,14 +56,15 @@ func (l *Levels) UpdateLevels(path string) error {
 	return nil
 }
 
-func loadMenus(path string) (*Levels, error) {
-	input, _ := ioutil.ReadFile(path)
-
+func loadMenus(pathCnf string) (*Levels, error) {
+	input, _ := ioutil.ReadFile(pathCnf)
+	dec := yaml.NewDecoder(bytes.NewBuffer(input), yaml.ReferenceDirs(path.Dir(pathCnf)), yaml.RecursiveDir(true))
 	menu := &Levels{}
-
-	if err := yaml.Unmarshal(input, &menu); err != nil {
+	if err := dec.Decode(menu); err != nil {
 		return nil, err
 	}
+
+	// устанавливаем недостающие настройки
 	for k, v := range CopyMap(menu.Menu) {
 		err := nestedToFlat(menu, v.Buttons, k, 1)
 		if err != nil {
@@ -68,6 +72,7 @@ func loadMenus(path string) (*Levels, error) {
 		}
 	}
 
+	// проверяем все меню
 	return menu, menu.checkMenus()
 }
 

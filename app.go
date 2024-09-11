@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -95,9 +97,24 @@ func main() {
 			}
 		}
 	}()
-	err = watcher.Add(cnf.BotConfig)
-	if err != nil {
-		logger.Crit(err)
+
+	// ищем все директории в папке
+	var directories []string
+	err = filepath.Walk(path.Dir(cnf.BotConfig), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			directories = append(directories, path)
+		}
+		return nil
+	})
+
+	// устанавливаем триггер на все папки
+	for _, dir := range directories {
+		if err := watcher.Add(dir); err != nil {
+			logger.Crit(err)
+		}
 	}
 
 	logger.Info("Application started")
