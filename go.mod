@@ -7,6 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.7.7
 	github.com/goccy/go-yaml v1.12.0
 	github.com/google/uuid v1.3.0
+	github.com/hooklift/gowsdl v0.5.0
 	gopkg.in/fsnotify.v1 v1.4.7
 )
 

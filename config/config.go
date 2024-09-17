@@ -26,9 +26,10 @@ type (
 	}
 
 	Connect struct {
-		Server   string `yaml:"server"`
-		Login    string `yaml:"login"`
-		Password string `yaml:"password"`
+		Server     string `yaml:"server"`
+		SoapServer string `yaml:"soap_server"`
+		Login      string `yaml:"login"`
+		Password   string `yaml:"password"`
 	}
 )
 

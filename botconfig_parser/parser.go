@@ -3,7 +3,7 @@ package botconfig_parser
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -57,7 +57,7 @@ func (l *Levels) UpdateLevels(path string) error {
 }
 
 func loadMenus(pathCnf string) (*Levels, error) {
-	input, _ := ioutil.ReadFile(pathCnf)
+	input, _ := os.ReadFile(pathCnf)
 	dec := yaml.NewDecoder(bytes.NewBuffer(input), yaml.ReferenceDirs(path.Dir(pathCnf)), yaml.RecursiveDir(true))
 	menu := &Levels{}
 	if err := dec.Decode(menu); err != nil {
@@ -113,6 +113,18 @@ func defaultWaitSendMenu() *Menu {
 	}
 }
 
+func defaultCreateTicketMenu() *Menu {
+	return &Menu{
+		Answer: []*Answer{
+			{Chat: " "},
+		},
+		Buttons: []*Buttons{
+			{Button{ButtonID: "1", ButtonText: "Перейти к следующему шагу", Goto: database.CREATE_TICKET}},
+			{Button{ButtonID: "2", ButtonText: "Отменить создание заявки", BackButton: true}},
+		},
+	}
+}
+
 func CopyMap(m map[string]*Menu) map[string]*Menu {
 	cp := make(map[string]*Menu)
 	for k, v := range m {
@@ -126,6 +138,9 @@ func nestedToFlat(main *Levels, buttons []*Buttons, k string, depthLevel int) er
 		// добавляем goto на Final если меню не имеет продолжение
 		if b.Button.SaveToVar == nil && b.Button.NestedMenu == nil && !b.Button.BackButton && k != database.FINAL && b.Button.Goto == "" {
 			b.Button.Goto = database.FINAL
+		}
+		if b.Button.TicketButton != nil && b.Button.TicketButton.Goto == "" {
+			b.Button.TicketButton.Goto = database.FINAL
 		}
 
 		if b.Button.NestedMenu != nil {
@@ -184,6 +199,9 @@ func (l *Levels) checkMenus() error {
 	}
 	if _, ok := l.Menu[database.WAIT_SEND]; !ok {
 		l.Menu[database.WAIT_SEND] = defaultWaitSendMenu()
+	}
+	if _, ok := l.Menu[database.CREATE_TICKET]; !ok {
+		l.Menu[database.CREATE_TICKET] = defaultCreateTicketMenu()
 	}
 	if l.UseQNA.Enabled {
 		if _, ok := l.Menu[database.FAIL_QNA]; !ok {
@@ -253,6 +271,59 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 		}
 		if b.Button.SaveToVar.DoButton.BackButton {
 			return fmt.Errorf("в do_button нельзя использовать back_button: %s %#v lvl:%d", k, b, depthLevel)
+		}
+		modifycatorCount++
+	}
+
+	if b.Button.TicketButton != nil {
+		if b.Button.TicketButton.ChannelID == uuid.Nil {
+			return fmt.Errorf("отсутствует канал связи (channel_id): %s %#v lvl:%d", k, b, depthLevel)
+		}
+		if b.Button.TicketButton.TicketInfo == "" {
+			return fmt.Errorf("отсутствует шаблон текста, где выводятся заполненные данные заявки (ticket_info): %s %#v lvl:%d", k, b, depthLevel)
+		}
+		if b.Button.TicketButton.Data != nil {
+			if b.Button.TicketButton.Data.Theme != nil {
+				if b.Button.TicketButton.Data.Theme.Text == "" {
+					return fmt.Errorf("отсутствует текст поля (theme: text): %s %#v lvl:%d", k, b, depthLevel)
+				}
+			} else {
+				return fmt.Errorf("отсутствует поле (theme): %s %#v lvl:%d", k, b, depthLevel)
+			}
+
+			if b.Button.TicketButton.Data.Description != nil {
+				if b.Button.TicketButton.Data.Description.Text == "" {
+					return fmt.Errorf("отсутствует текст поля (description: text): %s %#v lvl:%d", k, b, depthLevel)
+				}
+			} else {
+				return fmt.Errorf("отсутствует поле (description): %s %#v lvl:%d", k, b, depthLevel)
+			}
+
+			if b.Button.TicketButton.Data.Executor != nil {
+				if b.Button.TicketButton.Data.Executor.Text == "" {
+					return fmt.Errorf("отсутствует текст поля (executor: text): %s %#v lvl:%d", k, b, depthLevel)
+				}
+			} else {
+				return fmt.Errorf("отсутствует поле (executor): %s %#v lvl:%d", k, b, depthLevel)
+			}
+
+			if b.Button.TicketButton.Data.Service != nil {
+				if b.Button.TicketButton.Data.Service.Text == "" {
+					return fmt.Errorf("отсутствует текст поля (service: text): %s %#v lvl:%d", k, b, depthLevel)
+				}
+			} else {
+				return fmt.Errorf("отсутствует поле (service): %s %#v lvl:%d", k, b, depthLevel)
+			}
+
+			if b.Button.TicketButton.Data.ServiceType != nil {
+				if b.Button.TicketButton.Data.ServiceType.Text == "" {
+					return fmt.Errorf("отсутствует текст поля (type: text): %s %#v lvl:%d", k, b, depthLevel)
+				}
+			} else {
+				return fmt.Errorf("отсутствует поле (type): %s %#v lvl:%d", k, b, depthLevel)
+			}
+		} else {
+			return fmt.Errorf("отсутствуют данные заполняемой заявки (data): %s %#v lvl:%d", k, b, depthLevel)
 		}
 		modifycatorCount++
 	}

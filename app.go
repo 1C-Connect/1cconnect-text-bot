@@ -1,6 +1,11 @@
 package main
 
 import (
+	"connect-text-bot/bot"
+	"connect-text-bot/botconfig_parser"
+	"connect-text-bot/config"
+	"connect-text-bot/database"
+	"connect-text-bot/logger"
 	"context"
 	"flag"
 	"log"
@@ -11,12 +16,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-
-	"connect-text-bot/bot"
-	"connect-text-bot/botconfig_parser"
-	"connect-text-bot/config"
-	"connect-text-bot/database"
-	"connect-text-bot/logger"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/fsnotify.v1"
@@ -83,6 +82,15 @@ func main() {
 					return
 				}
 				log.Println("event:", event)
+				if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Rename == fsnotify.Rename {
+					if event.Name != "" {
+						if err := watcher.Add(event.Name); err != nil {
+							logger.Warning("Не удалось найти:", event.Name)
+							watcher.Remove(event.Name)
+						}
+					}
+					logger.Warning("При таких изменениях конфигурации рекомендуется перезагрузить бота!")
+				}
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					err = menus.UpdateLevels(cnf.BotConfig)
 					if err != nil {

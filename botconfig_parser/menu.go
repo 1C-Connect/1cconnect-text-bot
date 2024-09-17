@@ -76,10 +76,42 @@ type Button struct {
 	ExecButton string `yaml:"exec_button,omitempty"`
 	// получить и сохранить текст введенный пользователем
 	SaveToVar *SaveToVar `yaml:"save_to_var,omitempty"`
+	// зарегистрировать заявку
+	TicketButton *TicketButton `yaml:"ticket_button,omitempty"`
 	// перейти в меню
 	Goto string `yaml:"goto"`
 	// вложенное меню
 	NestedMenu *NestedMenu `yaml:"menu"`
+}
+
+type TicketButton struct {
+	// Канал связи
+	ChannelID uuid.UUID `yaml:"channel_id"`
+	// шаблон текста, где выводятся заполненные данные заявки
+	TicketInfo string `yaml:"ticket_info"`
+	// данные заполняемой заявки
+	Data *struct {
+		// тема заявки
+		Theme *PartTicket `yaml:"theme"`
+		// описание заявки
+		Description *PartTicket `yaml:"description"`
+		// исполнитель
+		Executor *PartTicket `yaml:"executor"`
+		// услуга
+		Service *PartTicket `yaml:"service"`
+		// тип услуги
+		ServiceType *PartTicket `yaml:"type"`
+	} `yaml:"data"`
+
+	// перейти в меню при окончание или отмене
+	Goto string `yaml:"goto"`
+}
+
+type PartTicket struct {
+	// текст приглашения к вводу
+	Text string `yaml:"text"`
+	// значение по умолчанию
+	DefaultValue string `yaml:"value,omitempty"`
 }
 
 type SaveToVar struct {

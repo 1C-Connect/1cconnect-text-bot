@@ -311,6 +311,24 @@ func (msg *Message) GetSpecialist(c *gin.Context, spec_id uuid.UUID) (content re
 	return
 }
 
+// Получение информации о специалистах
+func (msg *Message) GetSpecialists(c *gin.Context, line_id uuid.UUID) (content requests.Users, err error) {
+	cnf := c.MustGet("cnf").(*config.Conf)
+
+	var v = url.Values{}
+	if line_id != uuid.Nil {
+		v.Add("line_id", line_id.String())
+	}
+
+	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialists/", v, "application/json", nil)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(r, &content)
+	return
+}
+
 // Метод позволяет отправить файл или изображение в чат
 func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, filepath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
 	cnf := c.MustGet("cnf").(*config.Conf)

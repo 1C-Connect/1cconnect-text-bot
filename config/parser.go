@@ -9,6 +9,7 @@ import (
 )
 
 const CONNECT_SERVER = "https://push.1c-connect.com"
+const CONNECT_SOAP_SERVER = "http://buhphone.com/PartnerWebAPI2"
 
 func GetConfig(configPath string, cnf *Conf) {
 	logger.Debug("Loading configuration")
@@ -26,5 +27,8 @@ func GetConfig(configPath string, cnf *Conf) {
 	}
 	if cnf.Connect.Server == "" {
 		cnf.Connect.Server = CONNECT_SERVER
+	}
+	if cnf.Connect.SoapServer == "" {
+		cnf.Connect.SoapServer = CONNECT_SOAP_SERVER
 	}
 }
