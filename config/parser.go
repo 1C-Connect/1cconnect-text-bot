@@ -9,7 +9,7 @@ import (
 )
 
 const CONNECT_SERVER = "https://push.1c-connect.com"
-const CONNECT_SOAP_SERVER = "http://buhphone.com/PartnerWebAPI2"
+const CONNECT_SOAP_SERVER = "https://cus.1c-connect.com/cus/ws/PartnerWebAPI2"
 
 func GetConfig(configPath string, cnf *Conf) {
 	logger.Debug("Loading configuration")
