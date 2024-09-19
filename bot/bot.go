@@ -728,6 +728,11 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 			// этап регистрации заявки
 			case "FINAL":
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
+					err = msg.DropKeyboard(c)
+					if err != nil {
+						return finalSend(c, msg, "", err)
+					}
+
 					err = msg.Send(c, "Идет процесс регистрации заявки, подождите немного", nil)
 					if err != nil {
 						return finalSend(c, msg, "", err)
@@ -739,18 +744,14 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 						return finalSend(c, msg, "", err)
 					}
 
-					// даем минуту чтобы загрузилась заявка
-					for i := 0; i < 60; i++ {
+					// даем время чтобы загрузилась заявка
+					for {
+						time.Sleep(4 * time.Second)
+
 						_, err := msg.GetTicket(c, uuid.MustParse(r["ServiceRequestID"]))
 						if err == nil {
 							break
 						}
-
-						if i == 59 {
-							return finalSend(c, msg, "Время ожидания заявки истекло", err)
-						}
-
-						time.Sleep(1 * time.Second)
 					}
 
 					// чистим данные

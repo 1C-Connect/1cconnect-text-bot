@@ -329,6 +329,23 @@ func (msg *Message) GetSpecialists(c *gin.Context, line_id uuid.UUID) (content r
 	return
 }
 
+// Скрыть цифровое меню
+func (msg *Message) DropKeyboard(c *gin.Context) (err error) {
+	cnf := c.MustGet("cnf").(*config.Conf)
+	data := requests.TreatmentRequest{
+		LineID: msg.LineId,
+		UserId: msg.UserId,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+
+	_, err = client.Invoke(cnf, http.MethodPost, "/line/drop/keyboard/", nil, "application/json", jsonData)
+	return
+}
+
 // Метод позволяет отправить файл или изображение в чат
 func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, filepath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
