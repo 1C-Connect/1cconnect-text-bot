@@ -6,6 +6,7 @@ import (
 	"connect-text-bot/config"
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -25,34 +26,49 @@ func (msg *Message) GetTicket(c *gin.Context, id uuid.UUID) (content requests.Ti
 }
 
 // Получение данных для заявок
-func (msg *Message) GetTicketData(c *gin.Context) (content []requests.GetTicketDataResponse, err error) {
+func (msg *Message) GetTicketData(c *gin.Context, userInfo requests.User) (result requests.GetTicketDataResponse, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
-	r, err := client.Invoke(cnf, http.MethodGet, "/ticket/data/", nil, "application/json", nil)
+	v := url.Values{}
+	v.Add("line_id", msg.LineId.String())
+
+	r, err := client.Invoke(cnf, http.MethodGet, "/ticket/data/", v, "application/json", nil)
 	if err != nil {
 		return
 	}
 
+	var content []requests.GetTicketDataResponse
 	err = json.Unmarshal(r, &content)
+	if err != nil {
+		return
+	}
+
+	for _, v := range content {
+		if v.CounterpartID == userInfo.CounterpartOwnerId {
+			result = v
+			break
+		}
+	}
+
 	return
 }
 
 // Получение видов услуг
-func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData []requests.GetTicketDataResponse) (kinds []requests.TicketDataKind, err error) {
+func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetTicketDataResponse, userInfo requests.User) (kinds []requests.TicketDataKind, err error) {
 
-	if len(ticketData) == 0 {
-		ticketData, err = msg.GetTicketData(c)
+	if ticketData == nil {
+		ticketData = new(requests.GetTicketDataResponse)
+		*ticketData, err = msg.GetTicketData(c, userInfo)
 		if err != nil {
 			return
 		}
 	}
 
-	for _, v := range ticketData {
-		for _, value := range v.Kinds {
-			for _, line := range value.Lines {
-				if line == msg.LineId {
-					kinds = append(kinds, value)
-				}
+	// получаем все виды услуг доступные по текущей линии
+	for _, value := range ticketData.Kinds {
+		for _, line := range value.Lines {
+			if line == msg.LineId {
+				kinds = append(kinds, value)
 			}
 		}
 	}
@@ -61,38 +77,38 @@ func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData []requests.Get
 }
 
 // Получение всех типов услуг
-func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData []requests.GetTicketDataResponse) (types []requests.TicketDataType, err error) {
+func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData *requests.GetTicketDataResponse, userInfo requests.User) (types []requests.TicketDataType, err error) {
 
-	if len(ticketData) == 0 {
-		ticketData, err = msg.GetTicketData(c)
+	if ticketData == nil {
+		ticketData = new(requests.GetTicketDataResponse)
+		*ticketData, err = msg.GetTicketData(c, userInfo)
 		if err != nil {
 			return
 		}
 	}
 
-	for _, v := range ticketData {
-		types = append(types, v.Types...)
-	}
+	types = ticketData.Types
 
 	return
 }
 
 // Получение типов услуг у определенной услуги
-func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData []requests.GetTicketDataResponse, kindId uuid.UUID) (types []requests.TicketDataType, err error) {
+func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requests.GetTicketDataResponse, kindId uuid.UUID, userInfo requests.User) (types []requests.TicketDataType, err error) {
 
-	if len(ticketData) == 0 {
-		ticketData, err = msg.GetTicketData(c)
+	if ticketData == nil {
+		ticketData = new(requests.GetTicketDataResponse)
+		*ticketData, err = msg.GetTicketData(c, userInfo)
 		if err != nil {
 			return
 		}
 	}
 
-	allKinds, err := msg.GetTicketDataKinds(c, ticketData)
+	allKinds, err := msg.GetTicketDataKinds(c, ticketData, userInfo)
 	if err != nil {
 		return
 	}
 
-	allTypes, err := msg.GetTicketDataAllTypes(c, ticketData)
+	allTypes, err := msg.GetTicketDataAllTypes(c, ticketData, userInfo)
 	if err != nil {
 		return
 	}

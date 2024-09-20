@@ -46,41 +46,6 @@ type (
 	}
 )
 
-func Receive(c *gin.Context) {
-	var msg messages.Message
-	if err := c.BindJSON(&msg); err != nil {
-		logger.Warning("Error while receive message", err)
-
-		c.Status(http.StatusBadRequest)
-		return
-	}
-
-	logger.Debug("Receive message:", msg)
-
-	// Реагируем только на сообщения пользователя
-	if (msg.MessageType == messages.MESSAGE_TEXT || msg.MessageType == messages.MESSAGE_FILE) && msg.MessageAuthor != nil && msg.UserId != *msg.MessageAuthor {
-		c.Status(http.StatusOK)
-		return
-	}
-
-	cCp := c.Copy()
-	go func(cCp *gin.Context, msg messages.Message) {
-		chatState := getState(c, &msg)
-
-		newState, err := processMessage(c, &msg, &chatState)
-		if err != nil {
-			logger.Warning("Error processMessage", err)
-		}
-
-		err = changeCacheState(c, &msg, &chatState, newState)
-		if err != nil {
-			logger.Warning("Error changeState", err)
-		}
-	}(cCp, msg)
-
-	c.Status(http.StatusOK)
-}
-
 func changeCache(c *gin.Context, msg *messages.Message, chatState *Chat) error {
 	cache := c.MustGet("cache").(*bigcache.BigCache)
 
@@ -224,6 +189,41 @@ func saveUserDataInCache(c *gin.Context, msg *messages.Message, chatState *Chat)
 
 	chatState.User = userData
 	return
+}
+
+func Receive(c *gin.Context) {
+	var msg messages.Message
+	if err := c.BindJSON(&msg); err != nil {
+		logger.Warning("Error while receive message", err)
+
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	logger.Debug("Receive message:", msg)
+
+	// Реагируем только на сообщения пользователя
+	if (msg.MessageType == messages.MESSAGE_TEXT || msg.MessageType == messages.MESSAGE_FILE) && msg.MessageAuthor != nil && msg.UserId != *msg.MessageAuthor {
+		c.Status(http.StatusOK)
+		return
+	}
+
+	cCp := c.Copy()
+	go func(cCp *gin.Context, msg messages.Message) {
+		chatState := getState(c, &msg)
+
+		newState, err := processMessage(c, &msg, &chatState)
+		if err != nil {
+			logger.Warning("Error processMessage", err)
+		}
+
+		err = changeCacheState(c, &msg, &chatState, newState)
+		if err != nil {
+			logger.Warning("Error changeState", err)
+		}
+	}(cCp, msg)
+
+	c.Status(http.StatusOK)
 }
 
 // заполнить шаблон данными
@@ -587,7 +587,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 				// формируем клавиатуру
 				answer := menu.GenKeyboard(database.CREATE_TICKET)
-				kinds, err := msg.GetTicketDataKinds(c, nil)
+				kinds, err := msg.GetTicketDataKinds(c, nil, state.User)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -599,11 +599,11 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 			case ticket.GetService():
 				// получаем данные для заявок
-				ticketData, err := msg.GetTicketData(c)
+				ticketData, err := msg.GetTicketData(c, state.User)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
-				kinds, err := msg.GetTicketDataKinds(c, ticketData)
+				kinds, err := msg.GetTicketDataKinds(c, &ticketData, state.User)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -660,7 +660,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 				// формируем клавиатуру
 				answer := menu.GenKeyboard(database.CREATE_TICKET)
-				kindTypes, err := msg.GetTicketDataTypesWhereKind(c, ticketData, selectedKind.ID)
+				kindTypes, err := msg.GetTicketDataTypesWhereKind(c, &ticketData, selectedKind.ID, state.User)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -671,7 +671,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				return nextStageTicketButton(c, msg, chatState, tBtn.Data.ServiceType, ticket.GetServiceType(), answer)
 
 			case ticket.GetServiceType():
-				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.Id)
+				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.Id, state.User)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
