@@ -34,6 +34,8 @@ type (
 		PreviousState string `json:"prev_state" binding:"required" example:"100"`
 		// текущее состояние
 		CurrentState string `json:"curr_state" binding:"required" example:"300"`
+		// информация о пользователе
+		User requests.User `json:"user"`
 
 		// хранимые данные
 		Vars map[string]string `json:"vars" binding:"omitempty"`
@@ -176,6 +178,12 @@ func getState(c *gin.Context, msg *messages.Message) Chat {
 				PreviousState: database.GREETINGS,
 				CurrentState:  database.GREETINGS,
 			}
+
+			// сохраняем пользовательские данные
+			err := saveUserDataInCache(c, msg, &chatState)
+			if err != nil {
+				logger.Warning("Error while get user data", err)
+			}
 			return chatState
 		}
 	}
@@ -197,11 +205,25 @@ func getCacheVar(c *gin.Context, msg *messages.Message, varName string) (string,
 
 // чистим необязательные поля хранимых данных
 func clearCacheOmitemptyFields(c *gin.Context, msg *messages.Message, chatState *Chat) error {
-	chatState.Vars[database.VAR_FOR_SAVE] = ""
+	if _, exist := chatState.Vars[database.VAR_FOR_SAVE]; exist {
+		chatState.Vars[database.VAR_FOR_SAVE] = ""
+	}
 	chatState.SavedButton = nil
 	chatState.Ticket = database.Ticket{}
 
 	return changeCache(c, msg, chatState)
+}
+
+// сохранить данные о пользователе в кеше
+func saveUserDataInCache(c *gin.Context, msg *messages.Message, chatState *Chat) (err error) {
+	// получаем данные о пользователе
+	userData, err := msg.GetSubscriber(c)
+	if err != nil {
+		return
+	}
+
+	chatState.User = userData
+	return
 }
 
 // заполнить шаблон данными
@@ -212,12 +234,6 @@ func fillTemplateWithInfo(c *gin.Context, msg *messages.Message, text string) (r
 	}
 
 	state := getState(c, msg)
-
-	// получаем данные о пользователе
-	userData, err := msg.GetSubscriber(c)
-	if err != nil {
-		return
-	}
 
 	// формируем шаблон
 	templ, err := template.New("cmd").Parse(text)
@@ -231,7 +247,7 @@ func fillTemplateWithInfo(c *gin.Context, msg *messages.Message, text string) (r
 		Var    map[string]string
 		Ticket database.Ticket
 	}{
-		User:   userData,
+		User:   state.User,
 		Var:    state.Vars,
 		Ticket: state.Ticket,
 	}
