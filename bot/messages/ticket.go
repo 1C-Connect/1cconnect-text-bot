@@ -26,7 +26,7 @@ func (msg *Message) GetTicket(c *gin.Context, id uuid.UUID) (content requests.Ti
 }
 
 // Получение данных для заявок
-func (msg *Message) GetTicketData(c *gin.Context, userInfo requests.User) (result requests.GetTicketDataResponse, err error) {
+func (msg *Message) GetTicketData(c *gin.Context) (result requests.GetTicketDataResponse, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	v := url.Values{}
@@ -43,6 +43,8 @@ func (msg *Message) GetTicketData(c *gin.Context, userInfo requests.User) (resul
 		return
 	}
 
+	userInfo := msg.GetCacheUserInfo(c)
+
 	for _, v := range content {
 		if v.CounterpartID == userInfo.CounterpartOwnerId {
 			result = v
@@ -54,11 +56,11 @@ func (msg *Message) GetTicketData(c *gin.Context, userInfo requests.User) (resul
 }
 
 // Получение видов услуг
-func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetTicketDataResponse, userInfo requests.User) (kinds []requests.TicketDataKind, err error) {
+func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetTicketDataResponse) (kinds []requests.TicketDataKind, err error) {
 
 	if ticketData == nil {
 		ticketData = new(requests.GetTicketDataResponse)
-		*ticketData, err = msg.GetTicketData(c, userInfo)
+		*ticketData, err = msg.GetTicketData(c)
 		if err != nil {
 			return
 		}
@@ -77,11 +79,11 @@ func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetT
 }
 
 // Получение всех типов услуг
-func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData *requests.GetTicketDataResponse, userInfo requests.User) (types []requests.TicketDataType, err error) {
+func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData *requests.GetTicketDataResponse) (types []requests.TicketDataType, err error) {
 
 	if ticketData == nil {
 		ticketData = new(requests.GetTicketDataResponse)
-		*ticketData, err = msg.GetTicketData(c, userInfo)
+		*ticketData, err = msg.GetTicketData(c)
 		if err != nil {
 			return
 		}
@@ -93,22 +95,22 @@ func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData *requests.G
 }
 
 // Получение типов услуг у определенной услуги
-func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requests.GetTicketDataResponse, kindId uuid.UUID, userInfo requests.User) (types []requests.TicketDataType, err error) {
+func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requests.GetTicketDataResponse, kindId uuid.UUID) (types []requests.TicketDataType, err error) {
 
 	if ticketData == nil {
 		ticketData = new(requests.GetTicketDataResponse)
-		*ticketData, err = msg.GetTicketData(c, userInfo)
+		*ticketData, err = msg.GetTicketData(c)
 		if err != nil {
 			return
 		}
 	}
 
-	allKinds, err := msg.GetTicketDataKinds(c, ticketData, userInfo)
+	allKinds, err := msg.GetTicketDataKinds(c, ticketData)
 	if err != nil {
 		return
 	}
 
-	allTypes, err := msg.GetTicketDataAllTypes(c, ticketData, userInfo)
+	allTypes, err := msg.GetTicketDataAllTypes(c, ticketData)
 	if err != nil {
 		return
 	}

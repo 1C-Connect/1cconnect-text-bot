@@ -2,7 +2,6 @@ package bot
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -22,174 +21,9 @@ import (
 	"connect-text-bot/database"
 	"connect-text-bot/logger"
 
-	"github.com/allegro/bigcache/v3"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
-
-type (
-	// набор данных привязываемые к пользователю бота
-	Chat struct {
-		// предыдущее состояние
-		PreviousState string `json:"prev_state" binding:"required" example:"100"`
-		// текущее состояние
-		CurrentState string `json:"curr_state" binding:"required" example:"300"`
-		// информация о пользователе
-		User requests.User `json:"user"`
-
-		// хранимые данные
-		Vars map[string]string `json:"vars" binding:"omitempty"`
-		// хранимые данные о заявке
-		Ticket database.Ticket `json:"ticket" binding:"omitempty"`
-		// кнопка которую необходимо сохранить для последующей работы
-		SavedButton *botconfig_parser.Button `json:"saved_button" binding:"omitempty"`
-	}
-)
-
-func changeCache(c *gin.Context, msg *messages.Message, chatState *Chat) error {
-	cache := c.MustGet("cache").(*bigcache.BigCache)
-
-	data, err := json.Marshal(chatState)
-	if err != nil {
-		logger.Warning("Error while change state to cache", err)
-		return err
-	}
-
-	dbStateKey := msg.UserId.String() + ":" + msg.LineId.String()
-
-	err = cache.Set(dbStateKey, data)
-	logger.Debug("Write state to cache result")
-	if err != nil {
-		logger.Warning("Error while write state to cache", err)
-	}
-
-	return nil
-}
-
-func changeCacheTicket(c *gin.Context, msg *messages.Message, chatState *Chat, key string, value []string) error {
-	t := database.Ticket{}
-
-	switch key {
-	case t.GetChannel(), t.GetTheme(), t.GetDescription():
-		if len(value) != 1 {
-			return errors.New(fmt.Sprint("Неверное количество аргументов для:", key))
-		}
-		switch key {
-		case t.GetChannel():
-			chatState.Ticket.ChannelID = uuid.MustParse(value[0])
-		case t.GetTheme():
-			chatState.Ticket.Theme = value[0]
-		case t.GetDescription():
-			chatState.Ticket.Description = value[0]
-		}
-	case t.GetExecutor(), t.GetService(), t.GetServiceType():
-		if len(value) != 2 {
-			return errors.New(fmt.Sprint("Неверное количество аргументов для:", key))
-		}
-		switch key {
-		case t.GetExecutor():
-			chatState.Ticket.Executor.Id = uuid.MustParse(value[0])
-			chatState.Ticket.Executor.Name = value[1]
-		case t.GetService():
-			chatState.Ticket.Service.Id = uuid.MustParse(value[0])
-			chatState.Ticket.Service.Name = value[1]
-		case t.GetServiceType():
-			chatState.Ticket.ServiceType.Id = uuid.MustParse(value[0])
-			chatState.Ticket.ServiceType.Name = value[1]
-		}
-	}
-
-	return changeCache(c, msg, chatState)
-}
-
-func changeCacheVars(c *gin.Context, msg *messages.Message, chatState *Chat, key, value string) error {
-	if chatState.Vars == nil {
-		chatState.Vars = make(map[string]string)
-	}
-	chatState.Vars[key] = value
-
-	return changeCache(c, msg, chatState)
-}
-
-func changeCacheSavedButton(c *gin.Context, msg *messages.Message, chatState *Chat, button *botconfig_parser.Button) error {
-	chatState.SavedButton = button
-
-	return changeCache(c, msg, chatState)
-}
-
-func changeCacheState(c *gin.Context, msg *messages.Message, chatState *Chat, toState string) error {
-	if chatState.CurrentState == toState {
-		return nil
-	}
-
-	chatState.PreviousState = chatState.CurrentState
-	chatState.CurrentState = toState
-
-	return changeCache(c, msg, chatState)
-}
-
-func getState(c *gin.Context, msg *messages.Message) Chat {
-	cache := c.MustGet("cache").(*bigcache.BigCache)
-
-	var chatState Chat
-
-	dbStateKey := msg.UserId.String() + ":" + msg.LineId.String()
-
-	b, err := cache.Get(dbStateKey)
-	if err != nil {
-		if errors.Is(err, bigcache.ErrEntryNotFound) {
-			logger.Info("No state in cache for " + msg.UserId.String() + ":" + msg.LineId.String())
-			chatState = Chat{
-				PreviousState: database.GREETINGS,
-				CurrentState:  database.GREETINGS,
-			}
-
-			// сохраняем пользовательские данные
-			err := saveUserDataInCache(c, msg, &chatState)
-			if err != nil {
-				logger.Warning("Error while get user data", err)
-			}
-			return chatState
-		}
-	}
-	err = json.Unmarshal(b, &chatState)
-	if err != nil {
-		logger.Warning("Error while decoding state", err)
-	}
-
-	return chatState
-}
-
-// получить значение переменной из хранимых данных
-func getCacheVar(c *gin.Context, msg *messages.Message, varName string) (string, bool) {
-	state := getState(c, msg)
-
-	result, exist := state.Vars[varName]
-	return result, exist
-}
-
-// чистим необязательные поля хранимых данных
-func clearCacheOmitemptyFields(c *gin.Context, msg *messages.Message, chatState *Chat) error {
-	if _, exist := chatState.Vars[database.VAR_FOR_SAVE]; exist {
-		chatState.Vars[database.VAR_FOR_SAVE] = ""
-	}
-	chatState.SavedButton = nil
-	chatState.Ticket = database.Ticket{}
-
-	return changeCache(c, msg, chatState)
-}
-
-// сохранить данные о пользователе в кеше
-func saveUserDataInCache(c *gin.Context, msg *messages.Message, chatState *Chat) (err error) {
-	// получаем данные о пользователе
-	userData, err := msg.GetSubscriber(c)
-	if err != nil {
-		return
-	}
-
-	chatState.User = userData
-	return
-}
 
 func Receive(c *gin.Context) {
 	var msg messages.Message
@@ -210,14 +44,14 @@ func Receive(c *gin.Context) {
 
 	cCp := c.Copy()
 	go func(cCp *gin.Context, msg messages.Message) {
-		chatState := getState(c, &msg)
+		chatState := msg.GetState(c)
 
 		newState, err := processMessage(c, &msg, &chatState)
 		if err != nil {
 			logger.Warning("Error processMessage", err)
 		}
 
-		err = changeCacheState(c, &msg, &chatState, newState)
+		err = msg.ChangeCacheState(c, &chatState, newState)
 		if err != nil {
 			logger.Warning("Error changeState", err)
 		}
@@ -233,7 +67,7 @@ func fillTemplateWithInfo(c *gin.Context, msg *messages.Message, text string) (r
 		return text, nil
 	}
 
-	state := getState(c, msg)
+	state := msg.GetState(c)
 
 	// формируем шаблон
 	templ, err := template.New("cmd").Parse(text)
@@ -318,9 +152,9 @@ func SendAnswer(c *gin.Context, msg *messages.Message, menu *botconfig_parser.Le
 }
 
 // переход на следующую стадию формирования заявки
-func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *Chat, button *botconfig_parser.PartTicket, nextVar string, keyboard *[][]requests.KeyboardKey) (string, error) {
+func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *messages.Chat, button *botconfig_parser.PartTicket, nextVar string, keyboard *[][]requests.KeyboardKey) (string, error) {
 	goTo := database.CREATE_TICKET
-	state := getState(c, msg)
+	state := msg.GetState(c)
 
 	// формируем информацию о заявке
 	tInfo, err := fillTemplateWithInfo(c, msg, state.SavedButton.TicketButton.TicketInfo)
@@ -339,7 +173,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *Cha
 	}
 
 	// сохраняем имя переменной куда будем записывать результат
-	err = changeCacheVars(c, msg, chatState, database.VAR_FOR_SAVE, nextVar)
+	err = msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, nextVar)
 	if err != nil {
 		return finalSend(c, msg, "", err)
 	}
@@ -354,7 +188,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *Cha
 }
 
 // Проверить нажата ли BackButton
-func getGoToIfClickedBackBtn(btn *botconfig_parser.Button, state Chat) (goTo string) {
+func getGoToIfClickedBackBtn(btn *botconfig_parser.Button, state messages.Chat) (goTo string) {
 	if btn != nil && btn.BackButton {
 		if state.PreviousState != database.GREETINGS {
 			goTo = state.PreviousState
@@ -365,7 +199,7 @@ func getGoToIfClickedBackBtn(btn *botconfig_parser.Button, state Chat) (goTo str
 	return
 }
 
-func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (string, error) {
+func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.Chat) (string, error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 	menu := c.MustGet("menus").(*botconfig_parser.Levels)
 	time.Sleep(250 * time.Millisecond)
@@ -439,7 +273,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 		// пользователь попадет сюда в случае регистрации заявки
 		case database.CREATE_TICKET:
-			state := getState(c, msg)
+			state := msg.GetState(c)
 			btn := menu.GetButton(state.CurrentState, text)
 			tBtn := state.SavedButton.TicketButton
 			ticket := database.Ticket{}
@@ -448,7 +282,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 			goTo := getGoToIfClickedBackBtn(btn, state)
 			if goTo != "" {
 				// чистим данные
-				err = clearCacheOmitemptyFields(c, msg, chatState)
+				err = msg.ClearCacheOmitemptyFields(c, chatState)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -458,7 +292,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 			}
 
 			// узнаем имя переменной
-			varName, exist := getCacheVar(c, msg, database.VAR_FOR_SAVE)
+			varName, exist := msg.GetCacheVar(c, database.VAR_FOR_SAVE)
 			if !exist {
 				return finalSend(c, msg, "", err)
 			}
@@ -475,7 +309,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 							return finalSend(c, msg, "", err)
 						}
 
-						err = changeCacheTicket(c, msg, chatState, varName, []string{defaultValue})
+						err = msg.ChangeCacheTicket(c, chatState, varName, []string{defaultValue})
 						if err != nil {
 							return finalSend(c, msg, "", err)
 						}
@@ -484,7 +318,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 						return database.CREATE_TICKET, err
 					}
 				} else {
-					err = changeCacheTicket(c, msg, chatState, varName, []string{msg.Text})
+					err = msg.ChangeCacheTicket(c, chatState, varName, []string{msg.Text})
 					if err != nil {
 						return finalSend(c, msg, "", err)
 					}
@@ -503,7 +337,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 							return finalSend(c, msg, "", err)
 						}
 
-						err = changeCacheTicket(c, msg, chatState, varName, []string{defaultValue})
+						err = msg.ChangeCacheTicket(c, chatState, varName, []string{defaultValue})
 						if err != nil {
 							return finalSend(c, msg, "", err)
 						}
@@ -512,7 +346,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 						return database.CREATE_TICKET, err
 					}
 				} else {
-					err = changeCacheTicket(c, msg, chatState, varName, []string{msg.Text})
+					err = msg.ChangeCacheTicket(c, chatState, varName, []string{msg.Text})
 					if err != nil {
 						return finalSend(c, msg, "", err)
 					}
@@ -545,7 +379,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					for _, v := range listSpecs {
 						fio := fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic)
 						if checkValue == strings.TrimSpace(fio) {
-							err = changeCacheTicket(c, msg, chatState, varName, []string{v.UserId.String(), checkValue})
+							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.UserId.String(), checkValue})
 							if err != nil {
 								return finalSend(c, msg, "", err)
 							}
@@ -587,7 +421,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 				// формируем клавиатуру
 				answer := menu.GenKeyboard(database.CREATE_TICKET)
-				kinds, err := msg.GetTicketDataKinds(c, nil, state.User)
+				kinds, err := msg.GetTicketDataKinds(c, nil)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -599,11 +433,11 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 			case ticket.GetService():
 				// получаем данные для заявок
-				ticketData, err := msg.GetTicketData(c, state.User)
+				ticketData, err := msg.GetTicketData(c)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
-				kinds, err := msg.GetTicketDataKinds(c, &ticketData, state.User)
+				kinds, err := msg.GetTicketDataKinds(c, &ticketData)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -616,7 +450,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					isFind := false
 					for _, v := range kinds {
 						if checkValue == v.Name {
-							err = changeCacheTicket(c, msg, chatState, varName, []string{v.ID.String(), checkValue})
+							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), checkValue})
 							if err != nil {
 								return finalSend(c, msg, "", err)
 							}
@@ -660,7 +494,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 				// формируем клавиатуру
 				answer := menu.GenKeyboard(database.CREATE_TICKET)
-				kindTypes, err := msg.GetTicketDataTypesWhereKind(c, &ticketData, selectedKind.ID, state.User)
+				kindTypes, err := msg.GetTicketDataTypesWhereKind(c, &ticketData, selectedKind.ID)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -671,7 +505,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				return nextStageTicketButton(c, msg, chatState, tBtn.Data.ServiceType, ticket.GetServiceType(), answer)
 
 			case ticket.GetServiceType():
-				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.Id, state.User)
+				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.Id)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -681,7 +515,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					isFind := false
 					for _, v := range types {
 						if checkValue == v.Name {
-							err = changeCacheTicket(c, msg, chatState, varName, []string{v.ID.String(), checkValue})
+							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), checkValue})
 							if err != nil {
 								return finalSend(c, msg, "", err)
 							}
@@ -723,7 +557,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				}
 
 				// переходим в финальный этап формирования заявки
-				err = changeCacheVars(c, msg, chatState, database.VAR_FOR_SAVE, "FINAL")
+				err = msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, "FINAL")
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -771,7 +605,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					}
 
 					// чистим данные
-					err = clearCacheOmitemptyFields(c, msg, chatState)
+					err = msg.ClearCacheOmitemptyFields(c, chatState)
 					if err != nil {
 						return finalSend(c, msg, "", err)
 					}
@@ -786,12 +620,12 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 
 		// пользователь попадет сюда в случае перехода в режим ожидания сообщения
 		case database.WAIT_SEND:
-			state := getState(c, msg)
+			state := msg.GetState(c)
 
 			// записываем введенные данные в переменную
-			varName, ok := getCacheVar(c, msg, database.VAR_FOR_SAVE)
+			varName, ok := msg.GetCacheVar(c, database.VAR_FOR_SAVE)
 			if ok && varName != "" {
-				changeCacheVars(c, msg, chatState, varName, msg.Text)
+				msg.ChangeCacheVars(c, chatState, varName, msg.Text)
 			}
 
 			// переходим если нажата BackButton
@@ -799,7 +633,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 			goTo := getGoToIfClickedBackBtn(btn, state)
 			if goTo != "" {
 				// чистим данные
-				err = clearCacheOmitemptyFields(c, msg, chatState)
+				err = msg.ClearCacheOmitemptyFields(c, chatState)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -809,14 +643,14 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 			}
 
 			// выполнить действие кнопки
-			err = changeCacheState(c, msg, chatState, database.START)
+			err = msg.ChangeCacheState(c, chatState, database.START)
 			if err != nil {
 				logger.Warning("Error changeState", err)
 			}
 			return processMessage(c, msg, chatState)
 
 		default:
-			state := getState(c, msg)
+			state := msg.GetState(c)
 			currentMenu := state.CurrentState
 
 			// В редисе может остаться состояние которого, нет в конфиге.
@@ -840,7 +674,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				btn = state.SavedButton
 
 				// очищаем данные чтобы не было повторного использования
-				err = clearCacheOmitemptyFields(c, msg, chatState)
+				err = msg.ClearCacheOmitemptyFields(c, chatState)
 				if err != nil {
 					return finalSend(c, msg, "", err)
 				}
@@ -877,7 +711,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				}
 				if btn.CloseButton {
 					// чистим данные
-					err = clearCacheOmitemptyFields(c, msg, chatState)
+					err = msg.ClearCacheOmitemptyFields(c, chatState)
 					if err != nil {
 						return finalSend(c, msg, "", err)
 					}
@@ -986,14 +820,14 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					}
 
 					// сохраняем имя переменной куда будем записывать результат
-					err := changeCacheVars(c, msg, chatState, database.VAR_FOR_SAVE, btn.SaveToVar.VarName)
+					err := msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, btn.SaveToVar.VarName)
 					if err != nil {
 						return finalSend(c, msg, "", err)
 					}
 
 					// сохраняем ссылку на кнопку которая будет выполнена после завершения
 					if btn.SaveToVar.DoButton != nil {
-						err = changeCacheSavedButton(c, msg, chatState, btn.SaveToVar.DoButton)
+						err = msg.ChangeCacheSavedButton(c, chatState, btn.SaveToVar.DoButton)
 						if err != nil {
 							return finalSend(c, msg, "", err)
 						}
@@ -1003,7 +837,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				}
 				if btn.TicketButton != nil {
 					// сохраняем ссылку на кнопку которая была нажата
-					err = changeCacheSavedButton(c, msg, chatState, btn)
+					err = msg.ChangeCacheSavedButton(c, chatState, btn)
 					if err != nil {
 						return finalSend(c, msg, "", err)
 					}
@@ -1011,7 +845,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 					t := database.Ticket{}
 
 					// сохраняем id канала поступления заявки
-					err = changeCacheTicket(c, msg, chatState, t.GetChannel(), []string{btn.TicketButton.ChannelID.String()})
+					err = msg.ChangeCacheTicket(c, chatState, t.GetChannel(), []string{btn.TicketButton.ChannelID.String()})
 					if err != nil {
 						return finalSend(c, msg, "", err)
 					}
