@@ -1,4 +1,4 @@
 #!/bin/bash
 
 go mod tidy
-go build -ldflags "-w -s" -trimpath
+CGO_ENABLED=0 go build -ldflags "-w -s" -trimpath

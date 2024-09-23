@@ -595,7 +595,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					}
 
 					// даем время чтобы загрузилась заявка
-					for {
+					for i := 0; i < 10; i++ {
 						time.Sleep(4 * time.Second)
 
 						_, err := msg.GetTicket(c, uuid.MustParse(r["ServiceRequestID"]))

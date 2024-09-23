@@ -102,7 +102,7 @@ type (
 		// Исполнитель
 		Executor *User `json:"executor,omitempty"`
 		// Значения дополнительных полей заявки
-		Fields TicketAdditionalFieldValue `json:"fields,omitempty"`
+		Fields []TicketAdditionalFieldValue `json:"fields,omitempty"`
 	}
 
 	// Виды работ Service Desk
