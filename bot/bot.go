@@ -414,7 +414,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *Chat) (str
 				}
 
 				for i := 0; i < len(btn.Chat); i++ {
-					if btn.Chat[i].Chat != "" && !btn.CloseButton && !btn.RedirectButton {
+					if btn.Chat[i].Chat != "" {
 						r, err := fillTemplateWithInfo(c, msg, btn.Chat[i].Chat)
 						if err != nil {
 							return finalSend(c, msg, menu, cnf.FilesDir, "", err)
