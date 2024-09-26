@@ -24,16 +24,17 @@ import (
 type MessageType int
 
 const (
-	MESSAGE_TEXT                    MessageType = 1
-	MESSAGE_CALL_START_TREATMENT    MessageType = 20
-	MESSAGE_CALL_START_NO_TREATMENT MessageType = 21
-	MESSAGE_FILE                    MessageType = 70
-	MESSAGE_TREATMENT_START_BY_USER MessageType = 80
-	MESSAGE_TREATMENT_START_BY_SPEC MessageType = 81
-	MESSAGE_TREATMENT_CLOSE         MessageType = 82
-	MESSAGE_NO_FREE_SPECIALISTS     MessageType = 83
-	MESSAGE_TREATMENT_CLOSE_ACTIVE  MessageType = 90
-	MESSAGE_TREATMENT_TO_BOT        MessageType = 200
+	MESSAGE_TEXT                      MessageType = 1
+	MESSAGE_CALL_START_TREATMENT      MessageType = 20
+	MESSAGE_CALL_START_NO_TREATMENT   MessageType = 21
+	MESSAGE_FILE                      MessageType = 70
+	MESSAGE_TREATMENT_START_BY_USER   MessageType = 80
+	MESSAGE_TREATMENT_START_BY_SPEC   MessageType = 81
+	MESSAGE_TREATMENT_CLOSE           MessageType = 82
+	MESSAGE_NO_FREE_SPECIALISTS       MessageType = 83
+	MESSAGE_LINE_REROUTING_OTHER_LINE MessageType = 89
+	MESSAGE_TREATMENT_CLOSE_ACTIVE    MessageType = 90
+	MESSAGE_TREATMENT_TO_BOT          MessageType = 200
 )
 
 type (

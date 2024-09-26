@@ -883,7 +883,8 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				return state.CurrentState, err
 			}
 		}
-	case messages.MESSAGE_TREATMENT_TO_BOT:
+	case messages.MESSAGE_TREATMENT_TO_BOT,
+		messages.MESSAGE_LINE_REROUTING_OTHER_LINE:
 	default:
 		panic(fmt.Sprintf("unexpected messages.MessageType: %#v", msg.MessageType))
 	}
