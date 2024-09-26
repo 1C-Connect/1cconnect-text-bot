@@ -1,0 +1,80 @@
+project_name: 1cconnect-text-bot
+
+# версия goreleaser
+version: 2
+
+release:
+  github:
+    owner: 1C-Connect
+  name_template: 'Release {{.Tag}}'
+  # отключить авто-публикацию релиза
+  draft: true
+
+# выполнить до начала выпуска
+before:
+  hooks:
+    - ./build.sh
+
+builds:
+  - goos:
+    - darwin
+    - linux
+    - windows
+    goarch:
+    - amd64
+    - arm
+    - arm64
+    - "386"
+    goarm:
+    - "6"
+    - "7"
+  
+  # или но тогда надо ручками перебрать что надо
+    # - targets:
+    #   - darwin_amd64_v1
+    #   - darwin_arm64
+    #   - linux_amd64_v1
+    #   - linux_arm_6
+    #   - linux_arm_7
+    #   - linux_arm64
+    #   - linux_386
+    #   - windows_amd64_v1
+    #   - windows_arm_6
+    #   - windows_arm_7
+    #   - windows_arm64
+    #   - windows_386
+
+    # какую комбинацию нужно игнорировать
+    # ignore:
+      # - goos: darwin
+        # goarch: 386
+
+archives:
+  - # формат архивов tar.gz
+    format: tar.gz
+    # шаблон названия
+    name_template: >-
+      {{.ProjectName}}_{{.Tag}}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # вложить все данные архива в папку 
+    wrap_in_directory: true
+    # какие файлы или папки положить рядом с программой
+    files:
+      - scripts/*
+      - config/config.yml.sample
+      - README.md
+    # исключения для определенных архивов
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'SHA256SUMS'
+
+# оставить changelog пустым
+changelog:
+  disable: true
