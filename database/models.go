@@ -8,9 +8,9 @@ const (
 	FINAL     = "final_menu"
 	FAIL_QNA  = "fail_qna_menu"
 	// ожидание сообщения пользователя
-	WAIT_SEND = "wait_send"
+	WAIT_SEND = "wait_send_menu"
 	// регистрация заявки
-	CREATE_TICKET = "create_ticket"
+	CREATE_TICKET = "create_ticket_menu"
 )
 
 const (

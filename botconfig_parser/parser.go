@@ -66,9 +66,18 @@ func loadMenus(pathCnf string) (*Levels, error) {
 
 	// устанавливаем недостающие настройки
 	for k, v := range CopyMap(menu.Menu) {
-		err := nestedToFlat(menu, v.Buttons, k, 1)
-		if err != nil {
-			return nil, err
+		if v.Buttons != nil {
+			err := nestedToFlat(menu, v.Buttons, k, 1)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if v.DoButton != nil {
+			err := nestedToFlat(menu, []*Buttons{{Button: *v.DoButton}}, k, 1)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -115,9 +124,6 @@ func defaultWaitSendMenu() *Menu {
 
 func defaultCreateTicketMenu() *Menu {
 	return &Menu{
-		Answer: []*Answer{
-			{Chat: " "},
-		},
 		Buttons: []*Buttons{
 			{Button{ButtonID: "1", ButtonText: "Перейти к следующему шагу", Goto: database.CREATE_TICKET}},
 			{Button{ButtonID: "2", ButtonText: "Отменить создание заявки", BackButton: true}},
@@ -185,6 +191,11 @@ func nestedToFlat(main *Levels, buttons []*Buttons, k string, depthLevel int) er
 			if err != nil {
 				return err
 			}
+
+			// добавляем goto на Final если меню не имеет продолжение
+			if btn.Goto == "" && btn.SaveToVar == nil && btn.NestedMenu == nil {
+				b.Button.SaveToVar.DoButton.Goto = database.FINAL
+			}
 		}
 	}
 	return nil
@@ -203,6 +214,10 @@ func (l *Levels) checkMenus() error {
 	if _, ok := l.Menu[database.CREATE_TICKET]; !ok {
 		l.Menu[database.CREATE_TICKET] = defaultCreateTicketMenu()
 	}
+	// задаем заглушку для create_ticket_menu чтобы пропустить ошибку "отсутствует сообщение сопровождающее меню"
+	// используем ее тк пользователь не видит текст указанный в настройках Answer
+	l.Menu[database.CREATE_TICKET].Answer = []*Answer{{Chat: "<create_ticket_answer>"}}
+
 	if l.UseQNA.Enabled {
 		if _, ok := l.Menu[database.FAIL_QNA]; !ok {
 			l.Menu[database.FAIL_QNA] = defaultFailQnaMenu()
@@ -217,13 +232,26 @@ func (l *Levels) checkMenus() error {
 
 	// проверка меню и подуровней
 	for k, v := range l.Menu {
-		if len(v.Buttons) == 0 {
+		if len(v.Buttons) == 0 && v.DoButton == nil {
 			return fmt.Errorf("отсутствуют кнопки: %s %#v", k, v)
 		}
 
-		err := l.checkMenuLevels(v.Buttons, k, v, 1)
-		if err != nil {
-			return err
+		if v.Buttons != nil && v.DoButton != nil {
+			return fmt.Errorf("нельзя использовать одновременно buttons и do_button: %s %#v", k, v)
+		}
+
+		if v.Buttons != nil {
+			err := l.checkMenuLevels(v.Buttons, k, v, 1)
+			if err != nil {
+				return err
+			}
+		}
+
+		if v.DoButton != nil {
+			err := l.checkMenuLevels([]*Buttons{{Button: *v.DoButton}}, k, v, 1)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

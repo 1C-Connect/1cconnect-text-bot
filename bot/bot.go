@@ -129,7 +129,7 @@ func getFileInfo(filename, filesDir string) (isImage bool, filePath string, err 
 	return
 }
 
-func SendAnswer(c *gin.Context, msg *messages.Message, menu *botconfig_parser.Levels, goTo, filesDir string) {
+func SendAnswer(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, goTo, filesDir string, err error) (string, error) {
 	var toSend *[][]requests.KeyboardKey
 
 	for i := 0; i < len(menu.Menu[goTo].Answer); i++ {
@@ -149,6 +149,21 @@ func SendAnswer(c *gin.Context, msg *messages.Message, menu *botconfig_parser.Le
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
+
+	if err == nil && menu.Menu[goTo].DoButton != nil {
+		err := msg.ChangeCacheSavedButton(c, chatState, menu.Menu[goTo].DoButton)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+
+		// выполнить действие кнопки
+		err = msg.ChangeCacheState(c, chatState, database.START)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+		return processMessage(c, msg, chatState)
+	}
+	return goTo, err
 }
 
 // переход на следующую стадию формирования заявки
@@ -159,7 +174,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 	// формируем информацию о заявке
 	tInfo, err := fillTemplateWithInfo(c, msg, state.SavedButton.TicketButton.TicketInfo)
 	if err != nil {
-		return finalSend(c, msg, "", err)
+		return finalSend(c, msg, chatState, "", err)
 	}
 
 	// формируем сообщение
@@ -169,19 +184,19 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 	}
 	r, err := fillTemplateWithInfo(c, msg, text)
 	if err != nil {
-		return finalSend(c, msg, "", err)
+		return finalSend(c, msg, chatState, "", err)
 	}
 
 	// сохраняем имя переменной куда будем записывать результат
 	err = msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, nextVar)
 	if err != nil {
-		return finalSend(c, msg, "", err)
+		return finalSend(c, msg, chatState, "", err)
 	}
 
 	// отображаем информацию
 	err = msg.Send(c, tInfo, nil)
 	if err != nil {
-		return finalSend(c, msg, "", err)
+		return finalSend(c, msg, chatState, "", err)
 	}
 	err = msg.Send(c, r, keyboard)
 	return goTo, err
@@ -258,8 +273,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 							return currentMenu, err
 						}
 
-						SendAnswer(c, msg, menu, database.FAIL_QNA, cnf.FilesDir)
-						return database.FAIL_QNA, err
+						return SendAnswer(c, msg, chatState, menu, database.FAIL_QNA, cnf.FilesDir, err)
 					}
 				}
 			}
@@ -268,8 +282,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				msg.Send(c, menu.GreetingMessage, nil)
 				time.Sleep(time.Second)
 			}
-			SendAnswer(c, msg, menu, database.START, cnf.FilesDir)
-			return database.START, err
+			return SendAnswer(c, msg, chatState, menu, database.START, cnf.FilesDir, err)
 
 		// пользователь попадет сюда в случае регистрации заявки
 		case database.CREATE_TICKET:
@@ -284,17 +297,16 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				// чистим данные
 				err = msg.ClearCacheOmitemptyFields(c, chatState)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
-				SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-				return goTo, err
+				return SendAnswer(c, msg, chatState, menu, goTo, cnf.FilesDir, err)
 			}
 
 			// узнаем имя переменной
 			varName, exist := msg.GetCacheVar(c, database.VAR_FOR_SAVE)
 			if !exist {
-				return finalSend(c, msg, "", err)
+				return finalSend(c, msg, chatState, "", err)
 			}
 
 			switch varName {
@@ -306,12 +318,12 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						// подставляем данные если value содержит шаблон
 						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Theme.DefaultValue)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 
 						err = msg.ChangeCacheTicket(c, chatState, varName, []string{defaultValue})
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 					} else {
 						err = msg.Send(c, "Данный этап нельзя пропустить тк отсутствует значение по умолчанию", nil)
@@ -320,7 +332,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				} else {
 					err = msg.ChangeCacheTicket(c, chatState, varName, []string{msg.Text})
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 				}
 
@@ -334,12 +346,12 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						// подставляем данные если value содержит шаблон
 						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Description.DefaultValue)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 
 						err = msg.ChangeCacheTicket(c, chatState, varName, []string{defaultValue})
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 					} else {
 						err = msg.Send(c, "Данный этап нельзя пропустить тк отсутствует значение по умолчанию", nil)
@@ -348,14 +360,14 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				} else {
 					err = msg.ChangeCacheTicket(c, chatState, varName, []string{msg.Text})
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 				}
 
 				// получаем список специалистов
 				listSpecs, err := msg.GetSpecialists(c, msg.LineId)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
 				// формируем клавиатуру
@@ -370,7 +382,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				// получаем список специалистов
 				listSpecs, err := msg.GetSpecialists(c, msg.LineId)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
 				// функция для обработки найденного значения
@@ -381,7 +393,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						if checkValue == strings.TrimSpace(fio) {
 							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.UserId.String(), checkValue})
 							if err != nil {
-								return finalSend(c, msg, "", err)
+								return finalSend(c, msg, chatState, "", err)
 							}
 
 							isFind = true
@@ -402,7 +414,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						// подставляем данные если value содержит шаблон
 						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Executor.DefaultValue)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 
 						if goTo, err := checkValue(defaultValue); goTo != "" || err != nil {
@@ -423,7 +435,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				answer := menu.GenKeyboard(database.CREATE_TICKET)
 				kinds, err := msg.GetTicketDataKinds(c, nil)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 				for _, v := range kinds {
 					*answer = append(*answer, []requests.KeyboardKey{{Text: v.Name}})
@@ -435,11 +447,11 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				// получаем данные для заявок
 				ticketData, err := msg.GetTicketData(c)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 				kinds, err := msg.GetTicketDataKinds(c, &ticketData)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
 				// переменная для сохранения какой вид услуги был выбран
@@ -452,7 +464,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						if checkValue == v.Name {
 							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), checkValue})
 							if err != nil {
-								return finalSend(c, msg, "", err)
+								return finalSend(c, msg, chatState, "", err)
 							}
 
 							selectedKind = v
@@ -474,7 +486,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						// подставляем данные если value содержит шаблон
 						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Service.DefaultValue)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 
 						// ищем что было выбрано
@@ -496,7 +508,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				answer := menu.GenKeyboard(database.CREATE_TICKET)
 				kindTypes, err := msg.GetTicketDataTypesWhereKind(c, &ticketData, selectedKind.ID)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 				for _, v := range kindTypes {
 					*answer = append(*answer, []requests.KeyboardKey{{Text: v.Name}})
@@ -507,7 +519,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 			case ticket.GetServiceType():
 				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.Id)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
 				// функция для обработки найденного значения
@@ -517,7 +529,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						if checkValue == v.Name {
 							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), checkValue})
 							if err != nil {
-								return finalSend(c, msg, "", err)
+								return finalSend(c, msg, chatState, "", err)
 							}
 
 							isFind = true
@@ -538,7 +550,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						// подставляем данные если value содержит шаблон
 						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.ServiceType.DefaultValue)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 
 						// ищем что было выбрано
@@ -559,17 +571,17 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				// переходим в финальный этап формирования заявки
 				err = msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, "FINAL")
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
 				// отображаем информацию о заявке
 				tInfo, err := fillTemplateWithInfo(c, msg, state.SavedButton.TicketButton.TicketInfo)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 				err = msg.Send(c, tInfo, nil)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
 				err = msg.Send(c, "Зарегистрировать заявку?", menu.GenKeyboard(database.CREATE_TICKET))
@@ -580,18 +592,18 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
 					err = msg.DropKeyboard(c)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					err = msg.Send(c, "Идет процесс регистрации заявки, подождите немного", nil)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					// регистрируем заявку
 					r, err := msg.ServiceRequestAdd(c, state.Ticket)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					// даем время чтобы загрузилась заявка
@@ -607,11 +619,10 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					// чистим данные
 					err = msg.ClearCacheOmitemptyFields(c, chatState)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
-					SendAnswer(c, msg, menu, tBtn.Goto, cnf.FilesDir)
-					return tBtn.Goto, err
+					return SendAnswer(c, msg, chatState, menu, tBtn.Goto, cnf.FilesDir, err)
 				}
 			}
 
@@ -635,17 +646,16 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				// чистим данные
 				err = msg.ClearCacheOmitemptyFields(c, chatState)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 
-				SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-				return goTo, err
+				return SendAnswer(c, msg, chatState, menu, goTo, cnf.FilesDir, err)
 			}
 
 			// выполнить действие кнопки
 			err = msg.ChangeCacheState(c, chatState, database.START)
 			if err != nil {
-				logger.Warning("Error changeState", err)
+				return finalSend(c, msg, chatState, "", err)
 			}
 			return processMessage(c, msg, chatState)
 
@@ -676,7 +686,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				// очищаем данные чтобы не было повторного использования
 				err = msg.ClearCacheOmitemptyFields(c, chatState)
 				if err != nil {
-					return finalSend(c, msg, "", err)
+					return finalSend(c, msg, chatState, "", err)
 				}
 			}
 
@@ -691,10 +701,10 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				}
 
 				for i := 0; i < len(btn.Chat); i++ {
-					if btn.Chat[i].Chat != "" && !btn.CloseButton && !btn.RedirectButton {
+					if btn.Chat[i].Chat != "" {
 						r, err := fillTemplateWithInfo(c, msg, btn.Chat[i].Chat)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 
 						msg.Send(c, r, nil)
@@ -713,7 +723,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					// чистим данные
 					err = msg.ClearCacheOmitemptyFields(c, chatState)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					err = msg.CloseTreatment(c)
@@ -726,7 +736,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				if btn.AppointSpecButton != nil && *btn.AppointSpecButton != uuid.Nil {
 					ok, err := msg.GetSpecialistAvailable(c, *btn.AppointSpecButton)
 					if err != nil || !ok {
-						return finalSend(c, msg, "Выбранный специалист недоступен", err)
+						return finalSend(c, msg, chatState, "Выбранный специалист недоступен", err)
 					}
 					err = msg.AppointSpec(c, *btn.AppointSpecButton)
 					return database.GREETINGS, err
@@ -735,7 +745,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					// получаем список свободных специалистов
 					r, err := msg.GetSpecialistsAvailable(c)
 					if err != nil || len(r) == 0 {
-						return finalSend(c, msg, "Специалисты данной области недоступны", err)
+						return finalSend(c, msg, chatState, "Специалисты данной области недоступны", err)
 					}
 
 					// создаем словарь id специалистов которых мы хотели бы назначить
@@ -755,7 +765,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					// проверяем есть ли хотя бы 1 свободный специалист
 					lenNeededSpec := len(neededSpec)
 					if lenNeededSpec == 0 {
-						return finalSend(c, msg, "Специалисты данной области недоступны", err)
+						return finalSend(c, msg, chatState, "Специалисты данной области недоступны", err)
 					}
 
 					// назначаем случайного специалиста из списка
@@ -769,22 +779,22 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
 					r, err := msg.GetSubscriptions(c, *btn.RerouteButton)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 					if len(r) == 0 {
-						return finalSend(c, msg, "Выбранная линия недоступна", err)
+						return finalSend(c, msg, chatState, "Выбранная линия недоступна", err)
 					}
 
 					err = msg.Reroute(c, *btn.RerouteButton, "")
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 					return database.GREETINGS, err
 				}
 				if btn.ExecButton != "" {
 					r, err := fillTemplateWithInfo(c, msg, btn.ExecButton)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					// выполняем команду на устройстве
@@ -792,7 +802,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					var cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
 					cmdOutput, err := cmd.CombinedOutput()
 					if err != nil {
-						return finalSend(c, msg, "Ошибка: "+err.Error(), err)
+						return finalSend(c, msg, chatState, "Ошибка: "+err.Error(), err)
 					}
 
 					// выводим результат и завершаем
@@ -801,45 +811,46 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					if btn.Goto != "" {
 						goTo = btn.Goto
 					}
-					SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-					return goTo, err
+					return SendAnswer(c, msg, chatState, menu, goTo, cnf.FilesDir, err)
 				}
 				if btn.SaveToVar != nil {
 					// Сообщаем пользователю что требуем и запускаем ожидание данных
-					goTo := database.WAIT_SEND
 					if btn.SaveToVar.SendText != nil && *btn.SaveToVar.SendText != "" {
 						r, err := fillTemplateWithInfo(c, msg, *btn.SaveToVar.SendText)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 
-						msg.Send(c, r, menu.GenKeyboard(goTo))
+						msg.Send(c, r, menu.GenKeyboard(database.WAIT_SEND))
 					} else {
 						// выводим default WAIT_SEND меню в случае отсутствия настроек текста
-						SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+						_, err := SendAnswer(c, msg, chatState, menu, database.WAIT_SEND, cnf.FilesDir, err)
+						if err != nil {
+							return finalSend(c, msg, chatState, "", err)
+						}
 					}
 
 					// сохраняем имя переменной куда будем записывать результат
 					err := msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, btn.SaveToVar.VarName)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					// сохраняем ссылку на кнопку которая будет выполнена после завершения
 					if btn.SaveToVar.DoButton != nil {
 						err = msg.ChangeCacheSavedButton(c, chatState, btn.SaveToVar.DoButton)
 						if err != nil {
-							return finalSend(c, msg, "", err)
+							return finalSend(c, msg, chatState, "", err)
 						}
 					}
 
-					return goTo, err
+					return database.WAIT_SEND, err
 				}
 				if btn.TicketButton != nil {
 					// сохраняем ссылку на кнопку которая была нажата
 					err = msg.ChangeCacheSavedButton(c, chatState, btn)
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					t := database.Ticket{}
@@ -847,15 +858,14 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					// сохраняем id канала поступления заявки
 					err = msg.ChangeCacheTicket(c, chatState, t.GetChannel(), []string{btn.TicketButton.ChannelID.String()})
 					if err != nil {
-						return finalSend(c, msg, "", err)
+						return finalSend(c, msg, chatState, "", err)
 					}
 
 					return nextStageTicketButton(c, msg, chatState, btn.TicketButton.Data.Theme, t.GetTheme(), menu.GenKeyboard(database.CREATE_TICKET))
 				}
 
 				// Сообщения при переходе на новое меню.
-				SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
-				return goTo, err
+				return SendAnswer(c, msg, chatState, menu, goTo, cnf.FilesDir, err)
 
 			} else { // Произвольный текст
 				if !cm.QnaDisable && menu.UseQNA.Enabled {
@@ -876,8 +886,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						return state.CurrentState, err
 					}
 
-					SendAnswer(c, msg, menu, database.FAIL_QNA, cnf.FilesDir)
-					return database.FAIL_QNA, err
+					return SendAnswer(c, msg, chatState, menu, database.FAIL_QNA, cnf.FilesDir, err)
 				}
 				err = msg.Send(c, menu.ErrorMessage, menu.GenKeyboard(currentMenu))
 				return state.CurrentState, err
@@ -892,7 +901,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 }
 
 // выполнить Send и вывести Final меню
-func finalSend(c *gin.Context, msg *messages.Message, finalMsg string, err error) (string, error) {
+func finalSend(c *gin.Context, msg *messages.Message, chatState *messages.Chat, finalMsg string, err error) (string, error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 	menu := c.MustGet("menus").(*botconfig_parser.Levels)
 
@@ -902,7 +911,7 @@ func finalSend(c *gin.Context, msg *messages.Message, finalMsg string, err error
 		msg.Send(c, "Во время обработки вашего запроса произошла ошибка", nil)
 	}
 	goTo := database.FINAL
-	SendAnswer(c, msg, menu, goTo, cnf.FilesDir)
+	SendAnswer(c, msg, chatState, menu, goTo, cnf.FilesDir, err)
 	return goTo, err
 }
 

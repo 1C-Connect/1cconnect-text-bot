@@ -7,14 +7,15 @@ type Levels struct {
 
 	UseQNA QNA `yaml:"use_qna"`
 
-	BackButton                      *Button    `yaml:"back_button"`
-	CloseButton                     *Button    `yaml:"close_button"`
-	RedirectButton                  *Button    `yaml:"redirect_button"`
-	AppointSpecButton               *Button    `yaml:"appoint_spec_button"`
-	AppointRandomSpecFromListButton *Button    `yaml:"appoint_random_spec_from_list_button"`
-	RerouteButton                   *Button    `yaml:"reroute_button"`
-	ExecButton                      *Button    `yaml:"exec_button"`
-	SaveToVar                       *SaveToVar `yaml:"save_to_var"`
+	BackButton                      *Button       `yaml:"back_button"`
+	CloseButton                     *Button       `yaml:"close_button"`
+	RedirectButton                  *Button       `yaml:"redirect_button"`
+	AppointSpecButton               *Button       `yaml:"appoint_spec_button"`
+	AppointRandomSpecFromListButton *Button       `yaml:"appoint_random_spec_from_list_button"`
+	RerouteButton                   *Button       `yaml:"reroute_button"`
+	ExecButton                      *Button       `yaml:"exec_button"`
+	SaveToVar                       *SaveToVar    `yaml:"save_to_var"`
+	TicketButton                    *TicketButton `yaml:"ticket_button"`
 
 	ErrorMessage    string `yaml:"error_message"`
 	GreetingMessage string `yaml:"greeting_message"`
@@ -22,8 +23,12 @@ type Levels struct {
 }
 
 type Menu struct {
-	Answer  []*Answer  `yaml:"answer"`
-	Buttons []*Buttons `yaml:"buttons"`
+	Answer []*Answer `yaml:"answer"`
+
+	// вывести кнопки при отображение меню
+	Buttons []*Buttons `yaml:"buttons,omitempty"`
+	// выполнить действие по кнопке при отображение меню
+	DoButton *Button `yaml:"do_button,omitempty"`
 
 	QnaDisable bool `yaml:"qna_disable"`
 }
@@ -121,7 +126,7 @@ type SaveToVar struct {
 	SendText *string `yaml:"send_text,omitempty"`
 
 	// после получения сообщения пользователя выполнить действие по кнопке
-	DoButton *Button `yaml:"do_button,omitempty"`
+	DoButton *Button `yaml:"do_button"`
 }
 
 // применить настройки "по умолчанию" для кнопки
