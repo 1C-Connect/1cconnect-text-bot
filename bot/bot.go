@@ -253,12 +253,12 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			}
 
 			// формируем клавиатуру
-			*keyboard = append(*keyboard, btnAgain)
-			*keyboard = append(*keyboard, btnBack)
-			*keyboard = append(*keyboard, btnCancel)
 			for _, v := range listSpecs {
 				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic)}})
 			}
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
 		}
 	}
 	var ticketData *requests.GetTicketDataResponse = nil
@@ -295,9 +295,6 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			nextVar = ticket.GetServiceType()
 		} else {
 			// формируем клавиатуру
-			*keyboard = append(*keyboard, btnAgain)
-			*keyboard = append(*keyboard, btnBack)
-			*keyboard = append(*keyboard, btnCancel)
 			kinds, err := msg.GetTicketDataKinds(c, nil)
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
@@ -305,6 +302,9 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			for _, v := range kinds {
 				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v.Name}})
 			}
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
 		}
 	}
 	if nextVar == ticket.GetServiceType() {
@@ -335,9 +335,6 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			nextVar = "FINAL"
 		} else {
 			// формируем клавиатуру
-			*keyboard = append(*keyboard, btnAgain)
-			*keyboard = append(*keyboard, btnBack)
-			*keyboard = append(*keyboard, btnCancel)
 			kindTypes, err := msg.GetTicketDataTypesWhereKind(c, nil, chatState.Ticket.Service.Id)
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
@@ -345,6 +342,9 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			for _, v := range kindTypes {
 				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v.Name}})
 			}
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
 		}
 	}
 	if nextVar == "FINAL" {
