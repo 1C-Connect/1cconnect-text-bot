@@ -10,7 +10,8 @@ const (
 	// ожидание сообщения пользователя
 	WAIT_SEND = "wait_send_menu"
 	// регистрация заявки
-	CREATE_TICKET = "create_ticket_menu"
+	CREATE_TICKET            = "create_ticket"
+	CREATE_TICKET_PREV_STAGE = "create_ticket_prev_stage"
 )
 
 const (

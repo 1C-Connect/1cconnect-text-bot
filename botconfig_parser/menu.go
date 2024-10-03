@@ -114,9 +114,9 @@ type TicketButton struct {
 
 type PartTicket struct {
 	// текст приглашения к вводу
-	Text string `yaml:"text"`
+	Text string `yaml:"text,omitempty"`
 	// значение по умолчанию
-	DefaultValue string `yaml:"value,omitempty"`
+	DefaultValue *string `yaml:"value,omitempty"`
 }
 
 type SaveToVar struct {

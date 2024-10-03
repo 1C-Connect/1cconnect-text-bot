@@ -167,21 +167,194 @@ func SendAnswer(c *gin.Context, msg *messages.Message, chatState *messages.Chat,
 }
 
 // переход на следующую стадию формирования заявки
-func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *messages.Chat, button *botconfig_parser.PartTicket, nextVar string, keyboard *[][]requests.KeyboardKey) (string, error) {
+func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *messages.Chat, button *botconfig_parser.TicketButton, nextVar string) (string, error) {
 	goTo := database.CREATE_TICKET
-	state := msg.GetState(c)
+	ticket := database.Ticket{}
+	text := ""
 
-	// формируем информацию о заявке
-	tInfo, err := fillTemplateWithInfo(c, msg, state.SavedButton.TicketButton.TicketInfo)
-	if err != nil {
-		return finalSend(c, msg, chatState, "", err)
+	// настройки для клавиатуры
+	keyboard := &[][]requests.KeyboardKey{}
+	btnAgain := []requests.KeyboardKey{{Id: "1", Text: "Далее"}}
+	btnBack := []requests.KeyboardKey{{Id: "2", Text: "Назад"}}
+	btnCancel := []requests.KeyboardKey{{Id: "0", Text: "Отмена"}}
+	btnConfirm := []requests.KeyboardKey{{Id: "1", Text: "Подтверждаю"}}
+
+	// проверяем на какое следующее меню надо отправить
+	if nextVar == ticket.GetTheme() {
+		text = button.Data.Theme.Text
+		if button.Data.Theme.DefaultValue != nil {
+			// подставляем данные если value содержит шаблон
+			defaultValue, err := fillTemplateWithInfo(c, msg, *button.Data.Theme.DefaultValue)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// присвоить значение по умолчанию
+			err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{defaultValue})
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// переходим к следующее шагу
+			nextVar = ticket.GetDescription()
+		} else {
+			// формируем клавиатуру
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
+		}
+	}
+	if nextVar == ticket.GetDescription() {
+		text = button.Data.Description.Text
+		if button.Data.Description.DefaultValue != nil {
+			// подставляем данные если value содержит шаблон
+			defaultValue, err := fillTemplateWithInfo(c, msg, *button.Data.Description.DefaultValue)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// присвоить значение по умолчанию
+			err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{defaultValue})
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// переходим к следующее шагу
+			nextVar = ticket.GetExecutor()
+		} else {
+			// формируем клавиатуру
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
+		}
+	}
+	if nextVar == ticket.GetExecutor() {
+		text = button.Data.Executor.Text
+		if button.Data.Executor.DefaultValue != nil {
+			r, err := msg.GetSpecialist(c, uuid.MustParse(*button.Data.Executor.DefaultValue))
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+			fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", r.Surname, r.Name, r.Patronymic))
+
+			// присвоить значение по умолчанию
+			err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{r.UserId.String(), fio})
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// переходим к следующее шагу
+			nextVar = ticket.GetService()
+		} else {
+			// получаем список специалистов
+			listSpecs, err := msg.GetSpecialists(c, msg.LineId)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// формируем клавиатуру
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
+			for _, v := range listSpecs {
+				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic)}})
+			}
+		}
+	}
+	var ticketData *requests.GetTicketDataResponse = nil
+	if nextVar == ticket.GetService() {
+		text = button.Data.Service.Text
+		if button.Data.Service.DefaultValue != nil {
+			tr, err := msg.GetTicketData(c)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+			ticketData = &tr
+			kinds, err := msg.GetTicketDataKinds(c, ticketData)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// присвоить значение по умолчанию
+			isFind := false
+			for _, k := range kinds {
+				if k.ID.String() == *button.Data.Service.DefaultValue {
+					err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{k.ID.String(), k.Name})
+					if err != nil {
+						return finalSend(c, msg, chatState, "", err)
+					}
+					isFind = true
+					break
+				}
+			}
+			if !isFind {
+				return finalSend(c, msg, chatState, "", errors.New("указанное значение по умолчанию (value) невозможно применить в (service) по текущей линии"))
+			}
+
+			// переходим к следующее шагу
+			nextVar = ticket.GetServiceType()
+		} else {
+			// формируем клавиатуру
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
+			kinds, err := msg.GetTicketDataKinds(c, nil)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+			for _, v := range kinds {
+				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v.Name}})
+			}
+		}
+	}
+	if nextVar == ticket.GetServiceType() {
+		text = button.Data.ServiceType.Text
+		if button.Data.ServiceType.DefaultValue != nil {
+			types, err := msg.GetTicketDataTypesWhereKind(c, ticketData, chatState.Ticket.Service.Id)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			// присвоить значение по умолчанию
+			isFind := false
+			for _, t := range types {
+				if t.ID.String() == *button.Data.ServiceType.DefaultValue {
+					err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{t.ID.String(), t.Name})
+					if err != nil {
+						return finalSend(c, msg, chatState, "", err)
+					}
+					isFind = true
+					break
+				}
+			}
+			if !isFind {
+				return finalSend(c, msg, chatState, "", errors.New("указанное значение по умолчанию (value) невозможно применить в (type) для выбранного (service)"))
+			}
+
+			// переходим к следующее шагу
+			nextVar = "FINAL"
+		} else {
+			// формируем клавиатуру
+			*keyboard = append(*keyboard, btnAgain)
+			*keyboard = append(*keyboard, btnBack)
+			*keyboard = append(*keyboard, btnCancel)
+			kindTypes, err := msg.GetTicketDataTypesWhereKind(c, nil, chatState.Ticket.Service.Id)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+			for _, v := range kindTypes {
+				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v.Name}})
+			}
+		}
+	}
+	if nextVar == "FINAL" {
+		text = button.TicketInfo
+		*keyboard = append(*keyboard, btnConfirm)
+		*keyboard = append(*keyboard, btnBack)
+		*keyboard = append(*keyboard, btnCancel)
 	}
 
 	// формируем сообщение
-	text := button.Text
-	if button.DefaultValue != "" {
-		text += fmt.Sprintf("\nЗначение по умолчанию: %s", button.DefaultValue)
-	}
 	r, err := fillTemplateWithInfo(c, msg, text)
 	if err != nil {
 		return finalSend(c, msg, chatState, "", err)
@@ -193,13 +366,65 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 		return finalSend(c, msg, chatState, "", err)
 	}
 
-	// отображаем информацию
-	err = msg.Send(c, tInfo, nil)
-	if err != nil {
-		return finalSend(c, msg, chatState, "", err)
-	}
 	err = msg.Send(c, r, keyboard)
 	return goTo, err
+}
+
+// возврат на предыдущий шаг формирования заявки
+func prevStageTicketButton(c *gin.Context, msg *messages.Message, chatState *messages.Chat, button *botconfig_parser.TicketButton, currentVar string) (string, error) {
+	t := database.Ticket{}
+
+	if currentVar == "FINAL" {
+		currentVar = t.GetServiceType()
+		if button.Data.ServiceType.DefaultValue == nil {
+			return nextStageTicketButton(c, msg, chatState, button, currentVar)
+		}
+	}
+	if currentVar == t.GetServiceType() {
+		currentVar = t.GetService()
+		if button.Data.Service.DefaultValue == nil {
+			return nextStageTicketButton(c, msg, chatState, button, currentVar)
+		}
+	}
+	if currentVar == t.GetService() {
+		currentVar = t.GetExecutor()
+		if button.Data.Executor.DefaultValue == nil {
+			return nextStageTicketButton(c, msg, chatState, button, currentVar)
+		}
+	}
+	if currentVar == t.GetExecutor() {
+		currentVar = t.GetDescription()
+		if button.Data.Description.DefaultValue == nil {
+			return nextStageTicketButton(c, msg, chatState, button, currentVar)
+		}
+	}
+	if currentVar == t.GetDescription() {
+		currentVar = t.GetTheme()
+		if button.Data.Theme.DefaultValue == nil {
+			return nextStageTicketButton(c, msg, chatState, button, currentVar)
+		}
+	}
+	if currentVar == t.GetDescription() {
+		currentVar = t.GetTheme()
+		if button.Data.Theme.DefaultValue == nil {
+			return nextStageTicketButton(c, msg, chatState, button, currentVar)
+		}
+	}
+	if currentVar == t.GetTheme() {
+		state := msg.GetState(c)
+		cnf := c.MustGet("cnf").(*config.Conf)
+		menu := c.MustGet("menus").(*botconfig_parser.Levels)
+
+		// чистим данные
+		err := msg.ClearCacheOmitemptyFields(c, chatState)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+
+		return SendAnswer(c, msg, chatState, menu, state.PreviousState, cnf.FilesDir, err)
+	}
+
+	return finalSend(c, msg, chatState, "", errors.New("не найдено куда направить пользователя по кнопке Назад"))
 }
 
 // Проверить нажата ли BackButton
@@ -294,6 +519,11 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 			// переходим если нажата BackButton
 			goTo := getGoToIfClickedBackBtn(btn, state)
 			if goTo != "" {
+				// перейти в определенное меню если настроен параметр goto
+				if tBtn.Goto != "" {
+					goTo = tBtn.Goto
+				}
+
 				// чистим данные
 				err = msg.ClearCacheOmitemptyFields(c, chatState)
 				if err != nil {
@@ -309,74 +539,37 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				return finalSend(c, msg, chatState, "", err)
 			}
 
+			// проверяем нажата ли кнопка Назад
+			if btn != nil && btn.Goto == database.CREATE_TICKET_PREV_STAGE {
+				return prevStageTicketButton(c, msg, chatState, tBtn, varName)
+			}
+
 			switch varName {
 			case ticket.GetTheme():
-				// если кнопка перехода к следующему шагу то пробуем поставить значение по умолчанию
+				textForSave := msg.Text
+				// если кнопка перехода к следующему шагу
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					// если value есть то присвоить иначе сообщение пользователю
-					if tBtn.Data.Theme.DefaultValue != "" {
-						// подставляем данные если value содержит шаблон
-						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Theme.DefaultValue)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-
-						err = msg.ChangeCacheTicket(c, chatState, varName, []string{defaultValue})
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-					} else {
-						err = msg.Send(c, "Данный этап нельзя пропустить тк отсутствует значение по умолчанию", nil)
-						return database.CREATE_TICKET, err
-					}
-				} else {
-					err = msg.ChangeCacheTicket(c, chatState, varName, []string{msg.Text})
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
+					textForSave = ""
 				}
-
-				return nextStageTicketButton(c, msg, chatState, tBtn.Data.Description, ticket.GetDescription(), menu.GenKeyboard(database.CREATE_TICKET))
-
-			case ticket.GetDescription():
-				// если кнопка перехода к следующему шагу то пробуем поставить значение по умолчанию
-				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					// если value есть то присвоить иначе сообщение пользователю
-					if tBtn.Data.Description.DefaultValue != "" {
-						// подставляем данные если value содержит шаблон
-						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Description.DefaultValue)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-
-						err = msg.ChangeCacheTicket(c, chatState, varName, []string{defaultValue})
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-					} else {
-						err = msg.Send(c, "Данный этап нельзя пропустить тк отсутствует значение по умолчанию", nil)
-						return database.CREATE_TICKET, err
-					}
-				} else {
-					err = msg.ChangeCacheTicket(c, chatState, varName, []string{msg.Text})
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-				}
-
-				// получаем список специалистов
-				listSpecs, err := msg.GetSpecialists(c, msg.LineId)
+				err = msg.ChangeCacheTicket(c, chatState, varName, []string{textForSave})
 				if err != nil {
 					return finalSend(c, msg, chatState, "", err)
 				}
 
-				// формируем клавиатуру
-				answer := menu.GenKeyboard(database.CREATE_TICKET)
-				for _, v := range listSpecs {
-					*answer = append(*answer, []requests.KeyboardKey{{Text: fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic)}})
+				return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetDescription())
+
+			case ticket.GetDescription():
+				textForSave := msg.Text
+				// если кнопка перехода к следующему шагу
+				if btn != nil && btn.Goto == database.CREATE_TICKET {
+					textForSave = ""
+				}
+				err = msg.ChangeCacheTicket(c, chatState, varName, []string{textForSave})
+				if err != nil {
+					return finalSend(c, msg, chatState, "", err)
 				}
 
-				return nextStageTicketButton(c, msg, chatState, tBtn.Data.Executor, ticket.GetExecutor(), answer)
+				return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetExecutor())
 
 			case ticket.GetExecutor():
 				// получаем список специалистов
@@ -385,136 +578,54 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					return finalSend(c, msg, chatState, "", err)
 				}
 
-				// функция для обработки найденного значения
-				checkValue := func(checkValue string) (_ string, err error) {
-					isFind := false
+				// если кнопка перехода к следующему шагу
+				if btn != nil && btn.Goto == database.CREATE_TICKET {
+					err = msg.Send(c, "Данный этап нельзя пропустить", nil)
+					return database.CREATE_TICKET, err
+				} else {
 					for _, v := range listSpecs {
-						fio := fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic)
-						if checkValue == strings.TrimSpace(fio) {
-							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.UserId.String(), checkValue})
+						fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic))
+						if msg.Text == fio {
+							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.UserId.String(), msg.Text})
 							if err != nil {
 								return finalSend(c, msg, chatState, "", err)
 							}
 
-							isFind = true
-							break
+							return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetService())
 						}
 					}
-					if !isFind {
-						err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
-						return database.CREATE_TICKET, err
-					}
-					return
+					// если не найдено значение то ошибка
+					err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
+					return database.CREATE_TICKET, err
 				}
 
-				// если кнопка перехода к следующему шагу то пробуем поставить значение по умолчанию
-				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					// если value есть то присвоить иначе сообщение пользователю
-					if tBtn.Data.Executor.DefaultValue != "" {
-						// подставляем данные если value содержит шаблон
-						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Executor.DefaultValue)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-
-						if goTo, err := checkValue(defaultValue); goTo != "" || err != nil {
-							return goTo, err
-						}
-					} else {
-						err = msg.Send(c, "Данный этап нельзя пропустить тк отсутствует значение по умолчанию", nil)
-						return database.CREATE_TICKET, err
-					}
-				} else {
-					// ищем что было выбрано
-					if goTo, err := checkValue(msg.Text); goTo != "" || err != nil {
-						return goTo, err
-					}
-				}
-
-				// формируем клавиатуру
-				answer := menu.GenKeyboard(database.CREATE_TICKET)
+			case ticket.GetService():
+				// получаем данные для заявок
 				kinds, err := msg.GetTicketDataKinds(c, nil)
 				if err != nil {
 					return finalSend(c, msg, chatState, "", err)
 				}
-				for _, v := range kinds {
-					*answer = append(*answer, []requests.KeyboardKey{{Text: v.Name}})
-				}
 
-				return nextStageTicketButton(c, msg, chatState, tBtn.Data.Service, ticket.GetService(), answer)
-
-			case ticket.GetService():
-				// получаем данные для заявок
-				ticketData, err := msg.GetTicketData(c)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-				kinds, err := msg.GetTicketDataKinds(c, &ticketData)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-
-				// переменная для сохранения какой вид услуги был выбран
-				selectedKind := requests.TicketDataKind{}
-
-				// функция для обработки найденного значения
-				checkValue := func(checkValue string) (_ string, err error) {
-					isFind := false
+				// если кнопка перехода к следующему шагу
+				if btn != nil && btn.Goto == database.CREATE_TICKET {
+					err = msg.Send(c, "Данный этап нельзя пропустить", nil)
+					return database.CREATE_TICKET, err
+				} else {
 					for _, v := range kinds {
-						if checkValue == v.Name {
-							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), checkValue})
+						if msg.Text == v.Name {
+							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), msg.Text})
 							if err != nil {
 								return finalSend(c, msg, chatState, "", err)
 							}
 
-							selectedKind = v
-							isFind = true
-							break
+							return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetServiceType())
 						}
 					}
-					if !isFind {
-						err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
-						return database.CREATE_TICKET, err
-					}
-					return
-				}
 
-				// если кнопка перехода к следующему шагу то пробуем поставить значение по умолчанию
-				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					// если value есть то присвоить иначе сообщение пользователю
-					if tBtn.Data.Service.DefaultValue != "" {
-						// подставляем данные если value содержит шаблон
-						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.Service.DefaultValue)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-
-						// ищем что было выбрано
-						if goTo, err := checkValue(defaultValue); goTo != "" || err != nil {
-							return goTo, err
-						}
-					} else {
-						err = msg.Send(c, "Данный этап нельзя пропустить тк отсутствует значение по умолчанию", nil)
-						return database.CREATE_TICKET, err
-					}
-				} else {
-					// ищем что было выбрано
-					if goTo, err := checkValue(msg.Text); goTo != "" || err != nil {
-						return goTo, err
-					}
+					// если не найдено значение то ошибка
+					err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
+					return database.CREATE_TICKET, err
 				}
-
-				// формируем клавиатуру
-				answer := menu.GenKeyboard(database.CREATE_TICKET)
-				kindTypes, err := msg.GetTicketDataTypesWhereKind(c, &ticketData, selectedKind.ID)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-				for _, v := range kindTypes {
-					*answer = append(*answer, []requests.KeyboardKey{{Text: v.Name}})
-				}
-
-				return nextStageTicketButton(c, msg, chatState, tBtn.Data.ServiceType, ticket.GetServiceType(), answer)
 
 			case ticket.GetServiceType():
 				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.Id)
@@ -522,80 +633,37 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					return finalSend(c, msg, chatState, "", err)
 				}
 
-				// функция для обработки найденного значения
-				checkValue := func(checkValue string) (_ string, err error) {
-					isFind := false
+				// если кнопка перехода к следующему шагу
+				if btn != nil && btn.Goto == database.CREATE_TICKET {
+					err = msg.Send(c, "Данный этап нельзя пропустить", nil)
+					return database.CREATE_TICKET, err
+				} else {
 					for _, v := range types {
-						if checkValue == v.Name {
-							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), checkValue})
+						if msg.Text == v.Name {
+							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), msg.Text})
 							if err != nil {
 								return finalSend(c, msg, chatState, "", err)
 							}
 
-							isFind = true
-							break
+							return nextStageTicketButton(c, msg, chatState, tBtn, "FINAL")
 						}
 					}
-					if !isFind {
-						err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
-						return database.CREATE_TICKET, err
-					}
-					return
-				}
 
-				// если кнопка перехода к следующему шагу то пробуем поставить значение по умолчанию
-				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					// если value есть то присвоить иначе сообщение пользователю
-					if tBtn.Data.ServiceType.DefaultValue != "" {
-						// подставляем данные если value содержит шаблон
-						defaultValue, err := fillTemplateWithInfo(c, msg, tBtn.Data.ServiceType.DefaultValue)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-
-						// ищем что было выбрано
-						if goTo, err := checkValue(defaultValue); goTo != "" || err != nil {
-							return goTo, err
-						}
-					} else {
-						err = msg.Send(c, "Данный этап нельзя пропустить тк отсутствует значение по умолчанию", nil)
-						return database.CREATE_TICKET, err
-					}
-				} else {
-					// ищем что было выбрано
-					if goTo, err := checkValue(msg.Text); goTo != "" || err != nil {
-						return goTo, err
-					}
+					// если не найдено значение то ошибка
+					err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
+					return database.CREATE_TICKET, err
 				}
-
-				// переходим в финальный этап формирования заявки
-				err = msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, "FINAL")
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-
-				// отображаем информацию о заявке
-				tInfo, err := fillTemplateWithInfo(c, msg, state.SavedButton.TicketButton.TicketInfo)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-				err = msg.Send(c, tInfo, nil)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-
-				err = msg.Send(c, "Зарегистрировать заявку?", menu.GenKeyboard(database.CREATE_TICKET))
-				return database.CREATE_TICKET, err
 
 			// этап регистрации заявки
 			case "FINAL":
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
+					// удаляем клавиатуру
 					err = msg.DropKeyboard(c)
 					if err != nil {
 						return finalSend(c, msg, chatState, "", err)
 					}
 
-					err = msg.Send(c, "Идет процесс регистрации заявки, подождите немного", nil)
+					err = msg.Send(c, "Заявка регистрируется, ожидайте...", nil)
 					if err != nil {
 						return finalSend(c, msg, chatState, "", err)
 					}
@@ -861,7 +929,8 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						return finalSend(c, msg, chatState, "", err)
 					}
 
-					return nextStageTicketButton(c, msg, chatState, btn.TicketButton.Data.Theme, t.GetTheme(), menu.GenKeyboard(database.CREATE_TICKET))
+					gt, err := nextStageTicketButton(c, msg, chatState, btn.TicketButton, t.GetTheme())
+					return gt, err
 				}
 
 				// Сообщения при переходе на новое меню.
@@ -905,14 +974,15 @@ func finalSend(c *gin.Context, msg *messages.Message, chatState *messages.Chat, 
 	cnf := c.MustGet("cnf").(*config.Conf)
 	menu := c.MustGet("menus").(*botconfig_parser.Levels)
 
-	if finalMsg != "" {
-		msg.Send(c, finalMsg, nil)
-	} else {
-		msg.Send(c, "Во время обработки вашего запроса произошла ошибка", nil)
+	if finalMsg == "" {
+		finalMsg = "Во время обработки вашего запроса произошла ошибка"
 	}
-	goTo := database.FINAL
-	SendAnswer(c, msg, chatState, menu, goTo, cnf.FilesDir, err)
-	return goTo, err
+	msg.Send(c, finalMsg, nil)
+
+	// чистим данные чтобы избежать повторных ошибок
+	msg.ClearCacheOmitemptyFields(c, chatState)
+
+	return SendAnswer(c, msg, chatState, menu, database.FINAL, cnf.FilesDir, err)
 }
 
 // getMessageFromQNA - Метод возвращает ответ с Базы Знаний, и флаг, если это сообщение закрывает обращение.

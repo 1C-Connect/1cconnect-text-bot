@@ -122,11 +122,14 @@ func defaultWaitSendMenu() *Menu {
 	}
 }
 
-func defaultCreateTicketMenu() *Menu {
+// настройки только кнопок
+func defaultCreateTicketMenuBtnCnf() *Menu {
 	return &Menu{
 		Buttons: []*Buttons{
-			{Button{ButtonID: "1", ButtonText: "Перейти к следующему шагу", Goto: database.CREATE_TICKET}},
-			{Button{ButtonID: "2", ButtonText: "Отменить создание заявки", BackButton: true}},
+			{Button{ButtonID: "1", ButtonText: "Далее", Goto: database.CREATE_TICKET}},
+			{Button{ButtonID: "2", ButtonText: "Назад", Goto: database.CREATE_TICKET_PREV_STAGE}},
+			{Button{ButtonID: "1", ButtonText: "Подтверждаю", Goto: database.CREATE_TICKET}},
+			{Button{ButtonID: "0", ButtonText: "Отмена", BackButton: true}},
 		},
 	}
 }
@@ -211,9 +214,7 @@ func (l *Levels) checkMenus() error {
 	if _, ok := l.Menu[database.WAIT_SEND]; !ok {
 		l.Menu[database.WAIT_SEND] = defaultWaitSendMenu()
 	}
-	if _, ok := l.Menu[database.CREATE_TICKET]; !ok {
-		l.Menu[database.CREATE_TICKET] = defaultCreateTicketMenu()
-	}
+	l.Menu[database.CREATE_TICKET] = defaultCreateTicketMenuBtnCnf()
 	// задаем заглушку для create_ticket_menu чтобы пропустить ошибку "отсутствует сообщение сопровождающее меню"
 	// используем ее тк пользователь не видит текст указанный в настройках Answer
 	l.Menu[database.CREATE_TICKET].Answer = []*Answer{{Chat: "<create_ticket_answer>"}}
@@ -304,48 +305,67 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 	}
 
 	if b.Button.TicketButton != nil {
-		if b.Button.TicketButton.ChannelID == uuid.Nil {
+		tBtn := b.Button.TicketButton
+		if tBtn.ChannelID == uuid.Nil {
 			return fmt.Errorf("отсутствует канал связи (channel_id): %s %#v lvl:%d", k, b, depthLevel)
 		}
-		if b.Button.TicketButton.TicketInfo == "" {
+		if tBtn.TicketInfo == "" {
 			return fmt.Errorf("отсутствует шаблон текста, где выводятся заполненные данные заявки (ticket_info): %s %#v lvl:%d", k, b, depthLevel)
 		}
-		if b.Button.TicketButton.Data != nil {
-			if b.Button.TicketButton.Data.Theme != nil {
-				if b.Button.TicketButton.Data.Theme.Text == "" {
-					return fmt.Errorf("отсутствует текст поля (theme: text): %s %#v lvl:%d", k, b, depthLevel)
+		if tBtn.Data != nil {
+			if tBtn.Data.Theme != nil {
+				if tBtn.Data.Theme.Text == "" && tBtn.Data.Theme.DefaultValue == nil {
+					return fmt.Errorf("поле должно содержать text или value (theme): %s %#v lvl:%d", k, b, depthLevel)
 				}
 			} else {
 				return fmt.Errorf("отсутствует поле (theme): %s %#v lvl:%d", k, b, depthLevel)
 			}
 
-			if b.Button.TicketButton.Data.Description != nil {
-				if b.Button.TicketButton.Data.Description.Text == "" {
-					return fmt.Errorf("отсутствует текст поля (description: text): %s %#v lvl:%d", k, b, depthLevel)
+			if tBtn.Data.Description != nil {
+				if tBtn.Data.Description.Text == "" && tBtn.Data.Description.DefaultValue == nil {
+					return fmt.Errorf("поле должно содержать text или value (description): %s %#v lvl:%d", k, b, depthLevel)
 				}
 			} else {
 				return fmt.Errorf("отсутствует поле (description): %s %#v lvl:%d", k, b, depthLevel)
 			}
 
-			if b.Button.TicketButton.Data.Executor != nil {
-				if b.Button.TicketButton.Data.Executor.Text == "" {
-					return fmt.Errorf("отсутствует текст поля (executor: text): %s %#v lvl:%d", k, b, depthLevel)
+			if tBtn.Data.Executor != nil {
+				if tBtn.Data.Executor.Text == "" && tBtn.Data.Executor.DefaultValue == nil {
+					return fmt.Errorf("поле должно содержать text или value (executor): %s %#v lvl:%d", k, b, depthLevel)
+				}
+				if tBtn.Data.Executor.DefaultValue != nil {
+					_, err := uuid.Parse(*tBtn.Data.Executor.DefaultValue)
+					if err != nil {
+						return fmt.Errorf("value не id (executor): %s %#v lvl:%d", k, b, depthLevel)
+					}
 				}
 			} else {
 				return fmt.Errorf("отсутствует поле (executor): %s %#v lvl:%d", k, b, depthLevel)
 			}
 
-			if b.Button.TicketButton.Data.Service != nil {
-				if b.Button.TicketButton.Data.Service.Text == "" {
-					return fmt.Errorf("отсутствует текст поля (service: text): %s %#v lvl:%d", k, b, depthLevel)
+			if tBtn.Data.Service != nil {
+				if tBtn.Data.Service.Text == "" && tBtn.Data.Service.DefaultValue == nil {
+					return fmt.Errorf("поле должно содержать text или value (service): %s %#v lvl:%d", k, b, depthLevel)
+				}
+				if tBtn.Data.Service.DefaultValue != nil {
+					_, err := uuid.Parse(*tBtn.Data.Service.DefaultValue)
+					if err != nil {
+						return fmt.Errorf("value не id (service): %s %#v lvl:%d", k, b, depthLevel)
+					}
 				}
 			} else {
 				return fmt.Errorf("отсутствует поле (service): %s %#v lvl:%d", k, b, depthLevel)
 			}
 
-			if b.Button.TicketButton.Data.ServiceType != nil {
-				if b.Button.TicketButton.Data.ServiceType.Text == "" {
-					return fmt.Errorf("отсутствует текст поля (type: text): %s %#v lvl:%d", k, b, depthLevel)
+			if tBtn.Data.ServiceType != nil {
+				if tBtn.Data.ServiceType.Text == "" && tBtn.Data.ServiceType.DefaultValue == nil {
+					return fmt.Errorf("поле должно содержать text или value (type): %s %#v lvl:%d", k, b, depthLevel)
+				}
+				if tBtn.Data.ServiceType.DefaultValue != nil {
+					_, err := uuid.Parse(*tBtn.Data.ServiceType.DefaultValue)
+					if err != nil {
+						return fmt.Errorf("value не id (type): %s %#v lvl:%d", k, b, depthLevel)
+					}
 				}
 			} else {
 				return fmt.Errorf("отсутствует поле (type): %s %#v lvl:%d", k, b, depthLevel)
@@ -391,7 +411,7 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 	if b.Button.Goto != "" && b.Button.BackButton {
 		return fmt.Errorf("back_button не может иметь goto: %s %#v lvl:%d", k, b, depthLevel)
 	}
-	if _, ok := l.Menu[b.Button.Goto]; b.Button.Goto != "" && !ok {
+	if _, ok := l.Menu[b.Button.Goto]; b.Button.Goto != "" && !ok && b.Button.Goto != database.CREATE_TICKET_PREV_STAGE {
 		return fmt.Errorf("кнопка ведет на несуществующий уровень: %s %#v lvl:%d", k, b, depthLevel)
 	}
 	if len(v.Answer) == 0 || !IsAnyAnswer(v.Answer) {
