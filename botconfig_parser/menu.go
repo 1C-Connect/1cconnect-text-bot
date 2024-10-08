@@ -158,6 +158,8 @@ type SaveToVar struct {
 	// сообщение при нажатие на кнопку
 	SendText *string `yaml:"send_text,omitempty"`
 
+	// список вариантов из которых пользователь может выбрать ответ
+	OfferOptions []string `yaml:"offer_options,omitempty"`
 	// после получения сообщения пользователя выполнить действие по кнопке
 	DoButton *Button `yaml:"do_button"`
 }

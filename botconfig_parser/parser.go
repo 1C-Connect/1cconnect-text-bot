@@ -117,7 +117,7 @@ func defaultWaitSendMenu() *Menu {
 			{Chat: "Введите ваше значение"},
 		},
 		Buttons: []*Buttons{
-			{Button{ButtonID: "1", ButtonText: "Отмена", BackButton: true}},
+			{Button{ButtonID: "0", ButtonText: "Отмена", BackButton: true}},
 		},
 	}
 }

@@ -129,17 +129,21 @@ func getFileInfo(filename, filesDir string) (isImage bool, filePath string, err 
 	return
 }
 
-func SendAnswer(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, goTo, filesDir string, err error) (string, error) {
+// отобразить настройки меню
+func SendAnswerMenu(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, goTo, filesDir string, keyboard *[][]requests.KeyboardKey) error {
 	var toSend *[][]requests.KeyboardKey
 
 	for i := 0; i < len(menu.Menu[goTo].Answer); i++ {
 		// Отправляем клаву только с последним сообщением.
 		// Т.к в дп4 криво отображается.
 		if i == len(menu.Menu[goTo].Answer)-1 {
-			toSend = menu.GenKeyboard(goTo)
+			toSend = keyboard
 		}
 		if menu.Menu[goTo].Answer[i].Chat != "" {
-			r, _ := fillTemplateWithInfo(c, msg, menu.Menu[goTo].Answer[i].Chat)
+			r, err := fillTemplateWithInfo(c, msg, menu.Menu[goTo].Answer[i].Chat)
+			if err != nil {
+				return err
+			}
 			msg.Send(c, r, toSend)
 		}
 		if menu.Menu[goTo].Answer[i].File != "" {
@@ -149,7 +153,17 @@ func SendAnswer(c *gin.Context, msg *messages.Message, chatState *messages.Chat,
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
+	return nil
+}
 
+// отобразить меню и выполнить do_button если есть
+func SendAnswer(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, goTo, filesDir string, err error) (string, error) {
+	errMenu := SendAnswerMenu(c, msg, chatState, menu, goTo, filesDir, menu.GenKeyboard(goTo))
+	if errMenu != nil {
+		return finalSend(c, msg, chatState, "", err)
+	}
+
+	// выполнить действие do_button если не было ошибок и есть такая настройка
 	if err == nil && menu.Menu[goTo].DoButton != nil {
 		err := msg.ChangeCacheSavedButton(c, chatState, menu.Menu[goTo].DoButton)
 		if err != nil {
@@ -882,6 +896,13 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					return SendAnswer(c, msg, chatState, menu, goTo, cnf.FilesDir, err)
 				}
 				if btn.SaveToVar != nil {
+					// настройка клавиатуры
+					keyboard := &[][]requests.KeyboardKey{}
+					for _, v := range btn.SaveToVar.OfferOptions {
+						*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v}})
+					}
+					*keyboard = append(*keyboard, *menu.GenKeyboard(database.WAIT_SEND)...)
+
 					// Сообщаем пользователю что требуем и запускаем ожидание данных
 					if btn.SaveToVar.SendText != nil && *btn.SaveToVar.SendText != "" {
 						r, err := fillTemplateWithInfo(c, msg, *btn.SaveToVar.SendText)
@@ -889,10 +910,10 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 							return finalSend(c, msg, chatState, "", err)
 						}
 
-						msg.Send(c, r, menu.GenKeyboard(database.WAIT_SEND))
+						msg.Send(c, r, keyboard)
 					} else {
 						// выводим default WAIT_SEND меню в случае отсутствия настроек текста
-						_, err := SendAnswer(c, msg, chatState, menu, database.WAIT_SEND, cnf.FilesDir, err)
+						err := SendAnswerMenu(c, msg, chatState, menu, goTo, cnf.FilesDir, keyboard)
 						if err != nil {
 							return finalSend(c, msg, chatState, "", err)
 						}
