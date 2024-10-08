@@ -23,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/kballard/go-shellquote"
 )
 
 func Receive(c *gin.Context) {
@@ -874,14 +875,26 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					return database.GREETINGS, err
 				}
 				if btn.ExecButton != "" {
-					r, err := fillTemplateWithInfo(c, msg, btn.ExecButton)
+					// удаляем пробелы после {{ и до }}
+					for strings.Contains(btn.ExecButton, "{{ ") || strings.Contains(btn.ExecButton, " }}") {
+						btn.ExecButton = strings.ReplaceAll(btn.ExecButton, "{{ ", "{{")
+						btn.ExecButton = strings.ReplaceAll(btn.ExecButton, " }}", "}}")
+					}
+
+					// заполним шаблон разбив его на части чтобы исключить возможность выйти за кавычки
+					cmdParts, err := shellquote.Split(btn.ExecButton)
 					if err != nil {
 						return finalSend(c, msg, chatState, "", err)
 					}
+					for k, part := range cmdParts {
+						cmdParts[k], err = fillTemplateWithInfo(c, msg, part)
+						if err != nil {
+							return finalSend(c, msg, chatState, "", err)
+						}
+					}
 
 					// выполняем команду на устройстве
-					cmdParts := strings.Fields(r)
-					var cmd = exec.Command(cmdParts[0], cmdParts[1:]...)
+					cmd := exec.Command(cmdParts[0], cmdParts[1:]...)
 					cmdOutput, err := cmd.CombinedOutput()
 					if err != nil {
 						return finalSend(c, msg, chatState, "Ошибка: "+err.Error(), err)

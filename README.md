@@ -289,7 +289,7 @@ menus:
           var_name: lon
           send_text: "Введите долготу" 
           do_button:  # lvl:3
-            exec_button: "./scripts/example.sh {{ .User.UserId }} {{ .Var.lat }} {{ .Var.lon }}"
+            exec_button: './scripts/example.sh {{ .User.UserId }} {{ .Var.lat }} {{ .Var.lon }}'
 
 &сказать_спасибо
   chat:
@@ -549,7 +549,7 @@ menus:
           goto: start
       - button:
           text: "Подтвердить"
-          exec_button: "./scripts/example.sh {{ .User.UserId }} {{ .Var.lat }} {{ .Var.lon }}"
+          exec_button: './scripts/example.sh {{ .User.UserId }} {{ .Var.lat }} {{ .Var.lon }}'
 ```
 
 Параметры `save_to_var`:
