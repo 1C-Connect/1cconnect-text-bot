@@ -580,7 +580,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 
 				// если кнопка перехода к следующему шагу
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					err = msg.Send(c, "Данный этап нельзя пропустить", nil)
+					err = msg.Send(c, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
 					return database.CREATE_TICKET, err
 				} else {
 					for _, v := range listSpecs {
@@ -595,7 +595,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						}
 					}
 					// если не найдено значение то ошибка
-					err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
+					err = msg.Send(c, menu.ErrorMessages.TicketButton.ReceivedIncorrectValue, nil)
 					return database.CREATE_TICKET, err
 				}
 
@@ -608,7 +608,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 
 				// если кнопка перехода к следующему шагу
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					err = msg.Send(c, "Данный этап нельзя пропустить", nil)
+					err = msg.Send(c, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
 					return database.CREATE_TICKET, err
 				} else {
 					for _, v := range kinds {
@@ -623,7 +623,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					}
 
 					// если не найдено значение то ошибка
-					err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
+					err = msg.Send(c, menu.ErrorMessages.TicketButton.ReceivedIncorrectValue, nil)
 					return database.CREATE_TICKET, err
 				}
 
@@ -635,7 +635,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 
 				// если кнопка перехода к следующему шагу
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					err = msg.Send(c, "Данный этап нельзя пропустить", nil)
+					err = msg.Send(c, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
 					return database.CREATE_TICKET, err
 				} else {
 					for _, v := range types {
@@ -650,7 +650,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					}
 
 					// если не найдено значение то ошибка
-					err = msg.Send(c, "Получено некорректное значение. Повторите попытку", nil)
+					err = msg.Send(c, menu.ErrorMessages.TicketButton.ReceivedIncorrectValue, nil)
 					return database.CREATE_TICKET, err
 				}
 
@@ -694,7 +694,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				}
 			}
 
-			err = msg.Send(c, "Ожидалось нажатие на кнопку. Повторите попытку", nil)
+			err = msg.Send(c, menu.ErrorMessages.TicketButton.ExpectedButtonPress, nil)
 			return database.CREATE_TICKET, err
 
 		// пользователь попадет сюда в случае перехода в режим ожидания сообщения
@@ -735,7 +735,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 			cm, ok := menu.Menu[currentMenu]
 			if !ok {
 				logger.Warning("неизвестное состояние: ", currentMenu)
-				err = msg.Send(c, menu.ErrorMessage, menu.GenKeyboard(database.START))
+				err = msg.Send(c, menu.ErrorMessages.CommandUnknown, menu.GenKeyboard(database.START))
 				return database.GREETINGS, err
 			}
 
@@ -804,7 +804,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				if btn.AppointSpecButton != nil && *btn.AppointSpecButton != uuid.Nil {
 					ok, err := msg.GetSpecialistAvailable(c, *btn.AppointSpecButton)
 					if err != nil || !ok {
-						return finalSend(c, msg, chatState, "Выбранный специалист недоступен", err)
+						return finalSend(c, msg, chatState, menu.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable, err)
 					}
 					err = msg.AppointSpec(c, *btn.AppointSpecButton)
 					return database.GREETINGS, err
@@ -813,7 +813,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					// получаем список свободных специалистов
 					r, err := msg.GetSpecialistsAvailable(c)
 					if err != nil || len(r) == 0 {
-						return finalSend(c, msg, chatState, "Специалисты данной области недоступны", err)
+						return finalSend(c, msg, chatState, menu.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable, err)
 					}
 
 					// создаем словарь id специалистов которых мы хотели бы назначить
@@ -833,7 +833,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					// проверяем есть ли хотя бы 1 свободный специалист
 					lenNeededSpec := len(neededSpec)
 					if lenNeededSpec == 0 {
-						return finalSend(c, msg, chatState, "Специалисты данной области недоступны", err)
+						return finalSend(c, msg, chatState, menu.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable, err)
 					}
 
 					// назначаем случайного специалиста из списка
@@ -850,7 +850,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						return finalSend(c, msg, chatState, "", err)
 					}
 					if len(r) == 0 {
-						return finalSend(c, msg, chatState, "Выбранная линия недоступна", err)
+						return finalSend(c, msg, chatState, menu.ErrorMessages.RerouteButton.SelectedLineNotAvailable, err)
 					}
 
 					err = msg.Reroute(c, *btn.RerouteButton, "")
@@ -957,7 +957,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 
 					return SendAnswer(c, msg, chatState, menu, database.FAIL_QNA, cnf.FilesDir, err)
 				}
-				err = msg.Send(c, menu.ErrorMessage, menu.GenKeyboard(currentMenu))
+				err = msg.Send(c, menu.ErrorMessages.CommandUnknown, menu.GenKeyboard(currentMenu))
 				return state.CurrentState, err
 			}
 		}
@@ -975,7 +975,7 @@ func finalSend(c *gin.Context, msg *messages.Message, chatState *messages.Chat, 
 	menu := c.MustGet("menus").(*botconfig_parser.Levels)
 
 	if finalMsg == "" {
-		finalMsg = menu.ErrorProcessingMessage
+		finalMsg = menu.ErrorMessages.ButtonProcessing
 	}
 	msg.Send(c, finalMsg, nil)
 

@@ -17,10 +17,11 @@ type Levels struct {
 	SaveToVar                       *SaveToVar    `yaml:"save_to_var"`
 	TicketButton                    *TicketButton `yaml:"ticket_button"`
 
-	ErrorMessage           string `yaml:"error_message"`
-	ErrorProcessingMessage string `yaml:"error_processing_message"`
-	GreetingMessage        string `yaml:"greeting_message"`
-	FirstGreeting          bool   `yaml:"first_greeting"`
+	GreetingMessage string `yaml:"greeting_message"`
+	FirstGreeting   bool   `yaml:"first_greeting"`
+
+	// сообщения об ошибках
+	ErrorMessages ErrorMessages `yaml:"error_messages"`
 }
 
 type Menu struct {
@@ -32,6 +33,37 @@ type Menu struct {
 	DoButton *Button `yaml:"do_button,omitempty"`
 
 	QnaDisable bool `yaml:"qna_disable"`
+}
+
+type ErrorMessages struct {
+	// Команда неизвестна. Попробуйте еще раз
+	CommandUnknown string `yaml:"command_unknown"`
+	// Во время обработки вашего запроса произошла ошибка
+	ButtonProcessing string `yaml:"button_processing"`
+
+	AppointSpecButton struct {
+		// Выбранный специалист недоступен
+		SelectedSpecNotAvailable string `yaml:"selected_spec_not_available"`
+	} `yaml:"appoint_spec_button"`
+
+	AppointRandomSpecFromListButton struct {
+		// Специалисты данной области недоступны
+		SpecsNotAvailable string `yaml:"specs_not_available"`
+	} `yaml:"appoint_random_spec_from_list_button"`
+
+	RerouteButton struct {
+		// Выбранная линия недоступна
+		SelectedLineNotAvailable string `yaml:"selected_line_not_available"`
+	} `yaml:"reroute_button"`
+
+	TicketButton struct {
+		// Данный этап нельзя пропустить
+		StepCannotBeSkipped string `yaml:"step_cannot_be_skipped"`
+		// Получено некорректное значение. Повторите попытку
+		ReceivedIncorrectValue string `yaml:"received_incorrect_value"`
+		// Ожидалось нажатие на кнопку. Повторите попытку
+		ExpectedButtonPress string `yaml:"expected_button_press"`
+	} `yaml:"ticket_button"`
 }
 
 type QNA struct {

@@ -224,15 +224,12 @@ func (l *Levels) checkMenus() error {
 			l.Menu[database.FAIL_QNA] = defaultFailQnaMenu()
 		}
 	}
-	if l.ErrorMessage == "" {
-		l.ErrorMessage = "Команда неизвестна. Попробуйте еще раз"
-	}
 	if l.GreetingMessage == "" {
 		l.GreetingMessage = "Здравствуйте."
 	}
-	if l.ErrorProcessingMessage == "" {
-		l.ErrorProcessingMessage = "Во время обработки вашего запроса произошла ошибка"
-	}
+
+	// настраиваем текста ошибок по умолчанию которые не настроены
+	setDefaultErrorMessages(l)
 
 	// проверка меню и подуровней
 	for k, v := range l.Menu {
@@ -424,6 +421,34 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 		return fmt.Errorf("текст у кнопки не может быть пустой %s %#v lvl:%d", k, b, depthLevel)
 	}
 	return nil
+}
+
+// настроить текста ошибок по умолчанию
+func setDefaultErrorMessages(l *Levels) {
+	if l.ErrorMessages.CommandUnknown == "" {
+		l.ErrorMessages.CommandUnknown = "Команда неизвестна. Попробуйте еще раз"
+	}
+	if l.ErrorMessages.ButtonProcessing == "" {
+		l.ErrorMessages.ButtonProcessing = "Во время обработки вашего запроса произошла ошибка"
+	}
+	if l.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable == "" {
+		l.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable = "Выбранный специалист недоступен"
+	}
+	if l.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable == "" {
+		l.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable = "Специалисты данной области недоступны"
+	}
+	if l.ErrorMessages.RerouteButton.SelectedLineNotAvailable == "" {
+		l.ErrorMessages.RerouteButton.SelectedLineNotAvailable = "Выбранная линия недоступна"
+	}
+	if l.ErrorMessages.TicketButton.StepCannotBeSkipped == "" {
+		l.ErrorMessages.TicketButton.StepCannotBeSkipped = "Данный этап нельзя пропустить"
+	}
+	if l.ErrorMessages.TicketButton.ReceivedIncorrectValue == "" {
+		l.ErrorMessages.TicketButton.ReceivedIncorrectValue = "Получено некорректное значение. Повторите попытку"
+	}
+	if l.ErrorMessages.TicketButton.ExpectedButtonPress == "" {
+		l.ErrorMessages.TicketButton.ExpectedButtonPress = "Ожидалось нажатие на кнопку. Повторите попытку"
+	}
 }
 
 func IsAnyAnswer(answer []*Answer) bool {
