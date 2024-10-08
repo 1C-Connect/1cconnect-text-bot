@@ -975,7 +975,7 @@ func finalSend(c *gin.Context, msg *messages.Message, chatState *messages.Chat, 
 	menu := c.MustGet("menus").(*botconfig_parser.Levels)
 
 	if finalMsg == "" {
-		finalMsg = "Во время обработки вашего запроса произошла ошибка"
+		finalMsg = menu.ErrorProcessingMessage
 	}
 	msg.Send(c, finalMsg, nil)
 

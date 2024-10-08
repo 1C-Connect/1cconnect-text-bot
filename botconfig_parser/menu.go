@@ -17,9 +17,10 @@ type Levels struct {
 	SaveToVar                       *SaveToVar    `yaml:"save_to_var"`
 	TicketButton                    *TicketButton `yaml:"ticket_button"`
 
-	ErrorMessage    string `yaml:"error_message"`
-	GreetingMessage string `yaml:"greeting_message"`
-	FirstGreeting   bool   `yaml:"first_greeting"`
+	ErrorMessage           string `yaml:"error_message"`
+	ErrorProcessingMessage string `yaml:"error_processing_message"`
+	GreetingMessage        string `yaml:"greeting_message"`
+	FirstGreeting          bool   `yaml:"first_greeting"`
 }
 
 type Menu struct {

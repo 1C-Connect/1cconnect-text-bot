@@ -230,6 +230,9 @@ func (l *Levels) checkMenus() error {
 	if l.GreetingMessage == "" {
 		l.GreetingMessage = "Здравствуйте."
 	}
+	if l.ErrorProcessingMessage == "" {
+		l.ErrorProcessingMessage = "Во время обработки вашего запроса произошла ошибка"
+	}
 
 	// проверка меню и подуровней
 	for k, v := range l.Menu {
