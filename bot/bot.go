@@ -64,7 +64,7 @@ func Receive(c *gin.Context) {
 // заполнить шаблон данными
 func fillTemplateWithInfo(c *gin.Context, msg *messages.Message, text string) (result string, err error) {
 	// проверяем есть ли шаблон в тексте чтобы лишний раз не выполнять обработку
-	if !strings.Contains(text, "{{") && !strings.Contains(text, "}}") {
+	if !strings.Contains(text, "{{") || !strings.Contains(text, "}}") {
 		return text, nil
 	}
 
