@@ -9,6 +9,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"time"
 
@@ -347,6 +348,11 @@ func (msg *Message) DropKeyboard(c *gin.Context) (err error) {
 	return
 }
 
+// получить имя файла если оно имеет формат путь/имя_файла
+func getFileName(fileName string) string {
+	return filepath.Base(fileName)
+}
+
 // Метод позволяет отправить файл или изображение в чат
 func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, filepath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
@@ -355,7 +361,7 @@ func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, file
 		LineID:   msg.LineId,
 		UserId:   msg.UserId,
 		AuthorID: cnf.SpecID,
-		FileName: fileName,
+		FileName: getFileName(fileName),
 		Comment:  comment,
 		Keyboard: keyboard,
 	}
