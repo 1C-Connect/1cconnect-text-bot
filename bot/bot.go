@@ -823,6 +823,8 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 				if err != nil {
 					logger.Warning(err)
 				}
+			} else {
+				msg.Send(c, menu.ErrorMessages.FailedSendFile, nil)
 			}
 		}
 		time.Sleep(250 * time.Millisecond)
