@@ -176,17 +176,7 @@ func SendAnswer(c *gin.Context, msg *messages.Message, chatState *messages.Chat,
 
 	// выполнить действие do_button если не было ошибок и есть такая настройка
 	if err == nil && menu.Menu[goTo].DoButton != nil {
-		err := msg.ChangeCacheSavedButton(c, chatState, menu.Menu[goTo].DoButton)
-		if err != nil {
-			return finalSend(c, msg, chatState, "", err)
-		}
-
-		// выполнить действие кнопки
-		err = msg.ChangeCacheState(c, chatState, database.START)
-		if err != nil {
-			return finalSend(c, msg, chatState, "", err)
-		}
-		return processMessage(c, msg, chatState)
+		return triggerButton(c, msg, chatState, menu, menu.Menu[goTo].DoButton)
 	}
 	return goTo, err
 }
@@ -731,25 +721,21 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				msg.ChangeCacheVars(c, chatState, varName, msg.Text)
 			}
 
+			// чистим необязательные поля
+			err = msg.ClearCacheOmitemptyFields(c, chatState)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
 			// переходим если нажата BackButton
 			btn := menu.GetButton(state.CurrentState, text)
 			goTo := getGoToIfClickedBackBtn(btn, state)
 			if goTo != "" {
-				// чистим данные
-				err = msg.ClearCacheOmitemptyFields(c, chatState)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-
 				return SendAnswer(c, msg, chatState, menu, goTo, err)
 			}
 
 			// выполнить действие кнопки
-			err = msg.ChangeCacheState(c, chatState, database.START)
-			if err != nil {
-				return finalSend(c, msg, chatState, "", err)
-			}
-			return processMessage(c, msg, chatState)
+			return triggerButton(c, msg, chatState, menu, state.SavedButton)
 
 		default:
 			state := msg.GetState(c)
@@ -771,214 +757,8 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				btn = menu.GetButton(currentMenu, text)
 			}
 
-			// если есть принудительное значение для кнопки то присвоить
-			if state.SavedButton != nil {
-				btn = state.SavedButton
-
-				// очищаем данные чтобы не было повторного использования
-				err = msg.ClearCacheOmitemptyFields(c, chatState)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-			}
-
 			if btn != nil {
-				goTo := btn.Goto
-				if btn.BackButton {
-					if state.PreviousState != database.GREETINGS {
-						goTo = state.PreviousState
-					} else {
-						goTo = database.START
-					}
-				}
-
-				for i := 0; i < len(btn.Chat); i++ {
-					if btn.Chat[i].Chat != "" {
-						r, err := fillTemplateWithInfo(c, msg, btn.Chat[i].Chat)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-
-						msg.Send(c, r, nil)
-					}
-					if btn.Chat[i].File != "" {
-						if isImage, filepath, err := getFileInfo(btn.Chat[i].File, cnf.FilesDir); err == nil {
-							err := msg.SendFile(c, isImage, btn.Chat[i].File, filepath, &btn.Chat[i].FileText, nil)
-							if err != nil {
-								logger.Warning(err)
-							}
-						}
-					}
-					time.Sleep(250 * time.Millisecond)
-				}
-				if btn.CloseButton {
-					// чистим данные
-					err = msg.ClearCacheOmitemptyFields(c, chatState)
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-
-					err = msg.CloseTreatment(c)
-					return database.GREETINGS, err
-				}
-				if btn.RedirectButton {
-					err = msg.RerouteTreatment(c)
-					return database.GREETINGS, err
-				}
-				if btn.AppointSpecButton != nil && *btn.AppointSpecButton != uuid.Nil {
-					ok, err := msg.GetSpecialistAvailable(c, *btn.AppointSpecButton)
-					if err != nil || !ok {
-						return finalSend(c, msg, chatState, menu.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable, err)
-					}
-					err = msg.AppointSpec(c, *btn.AppointSpecButton)
-					return database.GREETINGS, err
-				}
-				if btn.AppointRandomSpecFromListButton != nil && len(*btn.AppointRandomSpecFromListButton) != 0 {
-					// получаем список свободных специалистов
-					r, err := msg.GetSpecialistsAvailable(c)
-					if err != nil || len(r) == 0 {
-						return finalSend(c, msg, chatState, menu.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable, err)
-					}
-
-					// создаем словарь id специалистов которых мы хотели бы назначить
-					specIDs := make(map[uuid.UUID]struct{})
-					for _, id := range *btn.AppointRandomSpecFromListButton {
-						specIDs[id] = struct{}{}
-					}
-
-					// ищем среди свободных специалистов нужных
-					neededSpec := make([]uuid.UUID, 0)
-					for i := 0; i < len(r); i++ {
-						if _, exists := specIDs[r[i]]; exists {
-							neededSpec = append(neededSpec, r[i])
-						}
-					}
-
-					// проверяем есть ли хотя бы 1 свободный специалист
-					lenNeededSpec := len(neededSpec)
-					if lenNeededSpec == 0 {
-						return finalSend(c, msg, chatState, menu.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable, err)
-					}
-
-					// назначаем случайного специалиста из списка
-					seed := time.Now().UnixNano()
-					rns := rand.NewSource(seed)
-					rng := rand.New(rns)
-					randomIndex := rng.Intn(lenNeededSpec)
-					err = msg.AppointSpec(c, neededSpec[randomIndex])
-					return database.GREETINGS, err
-				}
-				if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
-					r, err := msg.GetSubscriptions(c, *btn.RerouteButton)
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-					if len(r) == 0 {
-						return finalSend(c, msg, chatState, menu.ErrorMessages.RerouteButton.SelectedLineNotAvailable, err)
-					}
-
-					err = msg.Reroute(c, *btn.RerouteButton, "")
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-					return database.GREETINGS, err
-				}
-				if btn.ExecButton != "" {
-					// удаляем пробелы после {{ и до }}
-					for strings.Contains(btn.ExecButton, "{{ ") || strings.Contains(btn.ExecButton, " }}") {
-						btn.ExecButton = strings.ReplaceAll(btn.ExecButton, "{{ ", "{{")
-						btn.ExecButton = strings.ReplaceAll(btn.ExecButton, " }}", "}}")
-					}
-
-					// заполним шаблон разбив его на части чтобы исключить возможность выйти за кавычки
-					cmdParts, err := shellquote.Split(btn.ExecButton)
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-					for k, part := range cmdParts {
-						cmdParts[k], err = fillTemplateWithInfo(c, msg, part)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-					}
-
-					// выполняем команду на устройстве
-					cmd := exec.Command(cmdParts[0], cmdParts[1:]...)
-					cmdOutput, err := cmd.CombinedOutput()
-					if err != nil {
-						return finalSend(c, msg, chatState, "Ошибка: "+err.Error(), err)
-					}
-
-					// выводим результат и завершаем
-					msg.Send(c, string(cmdOutput), nil)
-					goTo := database.FINAL
-					if btn.Goto != "" {
-						goTo = btn.Goto
-					}
-					return SendAnswer(c, msg, chatState, menu, goTo, err)
-				}
-				if btn.SaveToVar != nil {
-					// настройка клавиатуры
-					keyboard := &[][]requests.KeyboardKey{}
-					for _, v := range btn.SaveToVar.OfferOptions {
-						*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v}})
-					}
-					*keyboard = append(*keyboard, *menu.GenKeyboard(database.WAIT_SEND)...)
-
-					// Сообщаем пользователю что требуем и запускаем ожидание данных
-					if btn.SaveToVar.SendText != nil && *btn.SaveToVar.SendText != "" {
-						r, err := fillTemplateWithInfo(c, msg, *btn.SaveToVar.SendText)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-
-						msg.Send(c, r, keyboard)
-					} else {
-						// выводим default WAIT_SEND меню в случае отсутствия настроек текста
-						err := SendAnswerMenu(c, msg, chatState, menu, goTo, keyboard)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-					}
-
-					// сохраняем имя переменной куда будем записывать результат
-					err := msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, btn.SaveToVar.VarName)
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-
-					// сохраняем ссылку на кнопку которая будет выполнена после завершения
-					if btn.SaveToVar.DoButton != nil {
-						err = msg.ChangeCacheSavedButton(c, chatState, btn.SaveToVar.DoButton)
-						if err != nil {
-							return finalSend(c, msg, chatState, "", err)
-						}
-					}
-
-					return database.WAIT_SEND, err
-				}
-				if btn.TicketButton != nil {
-					// сохраняем ссылку на кнопку которая была нажата
-					err = msg.ChangeCacheSavedButton(c, chatState, btn)
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-
-					t := database.Ticket{}
-
-					// сохраняем id канала поступления заявки
-					err = msg.ChangeCacheTicket(c, chatState, t.GetChannel(), []string{btn.TicketButton.ChannelID.String()})
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
-
-					gt, err := nextStageTicketButton(c, msg, chatState, btn.TicketButton, t.GetTheme())
-					return gt, err
-				}
-
-				// Сообщения при переходе на новое меню.
-				return SendAnswer(c, msg, chatState, menu, goTo, err)
-
+				return triggerButton(c, msg, chatState, menu, btn)
 			} else { // Произвольный текст
 				if !cm.QnaDisable && menu.UseQNA.Enabled {
 					// logger.Info("QNA", msg, chatState)
@@ -1010,6 +790,210 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 		panic(fmt.Sprintf("unexpected messages.MessageType: %#v", msg.MessageType))
 	}
 	return database.GREETINGS, errors.New("i don't know what i should do")
+}
+
+// выполнить действие кнопки
+func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, btn *botconfig_parser.Button) (string, error) {
+	cnf := c.MustGet("cnf").(*config.Conf)
+	state := msg.GetState(c)
+
+	var err error
+
+	goTo := btn.Goto
+	if btn.BackButton {
+		if state.PreviousState != database.GREETINGS {
+			goTo = state.PreviousState
+		} else {
+			goTo = database.START
+		}
+	}
+
+	for i := 0; i < len(btn.Chat); i++ {
+		if btn.Chat[i].Chat != "" {
+			r, err := fillTemplateWithInfo(c, msg, btn.Chat[i].Chat)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			msg.Send(c, r, nil)
+		}
+		if btn.Chat[i].File != "" {
+			if isImage, filepath, err := getFileInfo(btn.Chat[i].File, cnf.FilesDir); err == nil {
+				err = msg.SendFile(c, isImage, btn.Chat[i].File, filepath, &btn.Chat[i].FileText, nil)
+				if err != nil {
+					logger.Warning(err)
+				}
+			}
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	if btn.CloseButton {
+		// чистим данные
+		err = msg.ClearCacheOmitemptyFields(c, chatState)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+
+		err = msg.CloseTreatment(c)
+		return database.GREETINGS, err
+	}
+	if btn.RedirectButton {
+		err = msg.RerouteTreatment(c)
+		return database.GREETINGS, err
+	}
+	if btn.AppointSpecButton != nil && *btn.AppointSpecButton != uuid.Nil {
+		ok, err := msg.GetSpecialistAvailable(c, *btn.AppointSpecButton)
+		if err != nil || !ok {
+			return finalSend(c, msg, chatState, menu.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable, err)
+		}
+		err = msg.AppointSpec(c, *btn.AppointSpecButton)
+		return database.GREETINGS, err
+	}
+	if btn.AppointRandomSpecFromListButton != nil && len(*btn.AppointRandomSpecFromListButton) != 0 {
+		// получаем список свободных специалистов
+		r, err := msg.GetSpecialistsAvailable(c)
+		if err != nil || len(r) == 0 {
+			return finalSend(c, msg, chatState, menu.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable, err)
+		}
+
+		// создаем словарь id специалистов которых мы хотели бы назначить
+		specIDs := make(map[uuid.UUID]struct{})
+		for _, id := range *btn.AppointRandomSpecFromListButton {
+			specIDs[id] = struct{}{}
+		}
+
+		// ищем среди свободных специалистов нужных
+		neededSpec := make([]uuid.UUID, 0)
+		for i := 0; i < len(r); i++ {
+			if _, exists := specIDs[r[i]]; exists {
+				neededSpec = append(neededSpec, r[i])
+			}
+		}
+
+		// проверяем есть ли хотя бы 1 свободный специалист
+		lenNeededSpec := len(neededSpec)
+		if lenNeededSpec == 0 {
+			return finalSend(c, msg, chatState, menu.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable, err)
+		}
+
+		// назначаем случайного специалиста из списка
+		seed := time.Now().UnixNano()
+		rns := rand.NewSource(seed)
+		rng := rand.New(rns)
+		randomIndex := rng.Intn(lenNeededSpec)
+		err = msg.AppointSpec(c, neededSpec[randomIndex])
+		return database.GREETINGS, err
+	}
+	if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
+		r, err := msg.GetSubscriptions(c, *btn.RerouteButton)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+		if len(r) == 0 {
+			return finalSend(c, msg, chatState, menu.ErrorMessages.RerouteButton.SelectedLineNotAvailable, err)
+		}
+
+		err = msg.Reroute(c, *btn.RerouteButton, "")
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+		return database.GREETINGS, err
+	}
+	if btn.ExecButton != "" {
+		// удаляем пробелы после {{ и до }}
+		for strings.Contains(btn.ExecButton, "{{ ") || strings.Contains(btn.ExecButton, " }}") {
+			btn.ExecButton = strings.ReplaceAll(btn.ExecButton, "{{ ", "{{")
+			btn.ExecButton = strings.ReplaceAll(btn.ExecButton, " }}", "}}")
+		}
+
+		// заполним шаблон разбив его на части чтобы исключить возможность выйти за кавычки
+		cmdParts, err := shellquote.Split(btn.ExecButton)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+		for k, part := range cmdParts {
+			cmdParts[k], err = fillTemplateWithInfo(c, msg, part)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+		}
+
+		// выполняем команду на устройстве
+		cmd := exec.Command(cmdParts[0], cmdParts[1:]...)
+		cmdOutput, err := cmd.CombinedOutput()
+		if err != nil {
+			return finalSend(c, msg, chatState, "Ошибка: "+err.Error(), err)
+		}
+
+		// выводим результат и завершаем
+		msg.Send(c, string(cmdOutput), nil)
+		goTo := database.FINAL
+		if btn.Goto != "" {
+			goTo = btn.Goto
+		}
+		return SendAnswer(c, msg, chatState, menu, goTo, err)
+	}
+	if btn.SaveToVar != nil {
+		// настройка клавиатуры
+		keyboard := &[][]requests.KeyboardKey{}
+		for _, v := range btn.SaveToVar.OfferOptions {
+			*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v}})
+		}
+		*keyboard = append(*keyboard, *menu.GenKeyboard(database.WAIT_SEND)...)
+
+		// Сообщаем пользователю что требуем и запускаем ожидание данных
+		if btn.SaveToVar.SendText != nil && *btn.SaveToVar.SendText != "" {
+			r, err := fillTemplateWithInfo(c, msg, *btn.SaveToVar.SendText)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+
+			msg.Send(c, r, keyboard)
+		} else {
+			// выводим default WAIT_SEND меню в случае отсутствия настроек текста
+			err = SendAnswerMenu(c, msg, chatState, menu, goTo, keyboard)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+		}
+
+		// сохраняем имя переменной куда будем записывать результат
+		err = msg.ChangeCacheVars(c, chatState, database.VAR_FOR_SAVE, btn.SaveToVar.VarName)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+
+		// сохраняем ссылку на кнопку которая будет выполнена после завершения
+		if btn.SaveToVar.DoButton != nil {
+			err = msg.ChangeCacheSavedButton(c, chatState, btn.SaveToVar.DoButton)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+		}
+
+		return database.WAIT_SEND, err
+	}
+	if btn.TicketButton != nil {
+		// сохраняем ссылку на кнопку которая была нажата
+		err = msg.ChangeCacheSavedButton(c, chatState, btn)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+
+		t := database.Ticket{}
+
+		// сохраняем id канала поступления заявки
+		err = msg.ChangeCacheTicket(c, chatState, t.GetChannel(), []string{btn.TicketButton.ChannelID.String()})
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
+		}
+
+		gt, err := nextStageTicketButton(c, msg, chatState, btn.TicketButton, t.GetTheme())
+		return gt, err
+	}
+
+	// Сообщения при переходе на новое меню.
+	return SendAnswer(c, msg, chatState, menu, goTo, err)
 }
 
 // выполнить Send и вывести Final меню
