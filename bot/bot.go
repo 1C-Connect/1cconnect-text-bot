@@ -100,8 +100,13 @@ func fillTemplateWithInfo(c *gin.Context, msg *messages.Message, text string) (r
 // getFileNames - Получить список файлов из папки files.
 func getFileNames(root string) map[string]bool {
 	files := make(map[string]bool)
+
+	// строим абсолютный путь к переданной директории
 	root, _ = filepath.Abs(root)
+
+	// обходим все файлы и папки
 	filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		// проверяем, что текущий элемент не является директорией
 		if !info.IsDir() {
 			files[path] = true
 		}
@@ -110,24 +115,26 @@ func getFileNames(root string) map[string]bool {
 	return files
 }
 
+// проверить является ли файл изображением
 func IsImage(file string) bool {
 	reImg, _ := regexp.Compile(`(?i)\.(png|jpg|jpeg|bmp)$`)
 
 	return reImg.MatchString(file)
 }
 
+// получить информацию о файле
 func getFileInfo(filename, filesDir string) (isImage bool, filePath string, err error) {
-	isImage = IsImage(filename)
-
-	fileNames := getFileNames(filesDir)
+	// строим абсолютный путь к файлу
 	fullName, _ := filepath.Abs(filepath.Join(filesDir, filename))
+
+	// проверяем есть ли файл в указанном месте
+	fileNames := getFileNames(filesDir)
 	if !fileNames[fullName] {
 		err = fmt.Errorf("не удалось найти и отправить файл: %s", filename)
 		logger.Info(err)
 	}
 
-	filePath, _ = filepath.Abs(filepath.Join(filesDir, filename))
-	return
+	return IsImage(filename), fullName, err
 }
 
 // отобразить настройки меню
