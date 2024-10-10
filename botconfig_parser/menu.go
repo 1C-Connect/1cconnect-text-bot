@@ -40,6 +40,8 @@ type ErrorMessages struct {
 	CommandUnknown string `yaml:"command_unknown"`
 	// Во время обработки вашего запроса произошла ошибка
 	ButtonProcessing string `yaml:"button_processing"`
+	// Ошибка: Не удалось отправить файл
+	FailedSendFile string `yaml:"failed_send_file"`
 
 	AppointSpecButton struct {
 		// Выбранный специалист недоступен

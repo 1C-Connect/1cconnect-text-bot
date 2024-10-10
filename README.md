@@ -366,6 +366,7 @@ greeting_message: 'Здравствуйте.'
 error_messages:
   command_unknown: 'Команда неизвестна. Попробуйте еще раз'
   button_processing: 'Во время обработки вашего запроса произошла ошибка'
+  failed_send_file: 'Ошибка: Не удалось отправить файл'
   appoint_spec_button:
     selected_spec_not_available: 'Выбранный специалист недоступен'
   appoint_random_spec_from_list_button:

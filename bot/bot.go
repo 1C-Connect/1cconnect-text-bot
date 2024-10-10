@@ -159,7 +159,7 @@ func SendAnswerMenu(c *gin.Context, msg *messages.Message, chatState *messages.C
 			if isImage, filePath, err := getFileInfo(menu.Menu[goTo].Answer[i].File, cnf.FilesDir); err == nil {
 				msg.SendFile(c, isImage, menu.Menu[goTo].Answer[i].File, filePath, &menu.Menu[goTo].Answer[i].FileText, toSend)
 			} else {
-				msg.Send(c, "Ошибка: Не удалось отправить файл", toSend)
+				msg.Send(c, menu.ErrorMessages.FailedSendFile, toSend)
 			}
 		}
 		time.Sleep(250 * time.Millisecond)

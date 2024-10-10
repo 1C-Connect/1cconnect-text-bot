@@ -431,6 +431,9 @@ func setDefaultErrorMessages(l *Levels) {
 	if l.ErrorMessages.ButtonProcessing == "" {
 		l.ErrorMessages.ButtonProcessing = "Во время обработки вашего запроса произошла ошибка"
 	}
+	if l.ErrorMessages.FailedSendFile == "" {
+		l.ErrorMessages.FailedSendFile = "Ошибка: Не удалось отправить файл"
+	}
 	if l.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable == "" {
 		l.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable = "Выбранный специалист недоступен"
 	}
