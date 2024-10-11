@@ -74,6 +74,7 @@ func loadMenus(pathCnf string) (*Levels, error) {
 		}
 
 		if v.DoButton != nil {
+			v.DoButton.ButtonText = "<do_button>"
 			err := nestedToFlat(menu, []*Buttons{{Button: *v.DoButton}}, k, 1)
 			if err != nil {
 				return nil, err
