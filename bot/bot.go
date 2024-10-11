@@ -137,9 +137,35 @@ func getFileInfo(filename, filesDir string) (isImage bool, filePath string, err 
 	return IsImage(filename), fullName, err
 }
 
+// отправить сообщение из меню
+func SendAnswerMenuChat(c *gin.Context, msg *messages.Message, answer *botconfig_parser.Answer, keyboard *[][]requests.KeyboardKey) error {
+	if answer.Chat != "" {
+		r, err := fillTemplateWithInfo(c, msg, answer.Chat)
+		if err != nil {
+			return err
+		}
+		msg.Send(c, r, keyboard)
+	}
+	return nil
+}
+
+// отправить файл из меню
+func SendAnswerMenuFile(c *gin.Context, msg *messages.Message, menu *botconfig_parser.Levels, answer *botconfig_parser.Answer, keyboard *[][]requests.KeyboardKey) {
+	cnf := c.MustGet("cnf").(*config.Conf)
+	if answer.File != "" {
+		if isImage, filePath, err := getFileInfo(answer.File, cnf.FilesDir); err == nil {
+			err = msg.SendFile(c, isImage, answer.File, filePath, &answer.FileText, keyboard)
+			if err != nil {
+				logger.Warning(err)
+			}
+		} else {
+			msg.Send(c, menu.ErrorMessages.FailedSendFile, keyboard)
+		}
+	}
+}
+
 // отобразить настройки меню
 func SendAnswerMenu(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, goTo string, keyboard *[][]requests.KeyboardKey) error {
-	cnf := c.MustGet("cnf").(*config.Conf)
 	var toSend *[][]requests.KeyboardKey
 
 	for i := 0; i < len(menu.Menu[goTo].Answer); i++ {
@@ -148,20 +174,11 @@ func SendAnswerMenu(c *gin.Context, msg *messages.Message, chatState *messages.C
 		if i == len(menu.Menu[goTo].Answer)-1 {
 			toSend = keyboard
 		}
-		if menu.Menu[goTo].Answer[i].Chat != "" {
-			r, err := fillTemplateWithInfo(c, msg, menu.Menu[goTo].Answer[i].Chat)
-			if err != nil {
-				return err
-			}
-			msg.Send(c, r, toSend)
+		err := SendAnswerMenuChat(c, msg, menu.Menu[goTo].Answer[i], toSend)
+		if err != nil {
+			return err
 		}
-		if menu.Menu[goTo].Answer[i].File != "" {
-			if isImage, filePath, err := getFileInfo(menu.Menu[goTo].Answer[i].File, cnf.FilesDir); err == nil {
-				msg.SendFile(c, isImage, menu.Menu[goTo].Answer[i].File, filePath, &menu.Menu[goTo].Answer[i].FileText, toSend)
-			} else {
-				msg.Send(c, menu.ErrorMessages.FailedSendFile, toSend)
-			}
-		}
+		SendAnswerMenuFile(c, msg, menu, menu.Menu[goTo].Answer[i], toSend)
 		time.Sleep(250 * time.Millisecond)
 	}
 	return nil
@@ -784,7 +801,6 @@ func qnaResponse(c *gin.Context, msg *messages.Message, chatState *messages.Chat
 
 // выполнить действие кнопки
 func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, btn *botconfig_parser.Button) (string, error) {
-	cnf := c.MustGet("cnf").(*config.Conf)
 	state := msg.GetState(c)
 
 	var err error
@@ -799,24 +815,11 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 	}
 
 	for i := 0; i < len(btn.Chat); i++ {
-		if btn.Chat[i].Chat != "" {
-			r, err := fillTemplateWithInfo(c, msg, btn.Chat[i].Chat)
-			if err != nil {
-				return finalSend(c, msg, chatState, "", err)
-			}
-
-			msg.Send(c, r, nil)
+		err := SendAnswerMenuChat(c, msg, btn.Chat[i], nil)
+		if err != nil {
+			return finalSend(c, msg, chatState, "", err)
 		}
-		if btn.Chat[i].File != "" {
-			if isImage, filepath, err := getFileInfo(btn.Chat[i].File, cnf.FilesDir); err == nil {
-				err = msg.SendFile(c, isImage, btn.Chat[i].File, filepath, &btn.Chat[i].FileText, nil)
-				if err != nil {
-					logger.Warning(err)
-				}
-			} else {
-				msg.Send(c, menu.ErrorMessages.FailedSendFile, nil)
-			}
-		}
+		SendAnswerMenuFile(c, msg, menu, btn.Chat[i], nil)
 		time.Sleep(250 * time.Millisecond)
 	}
 	if btn.CloseButton {
