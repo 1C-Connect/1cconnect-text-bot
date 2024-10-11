@@ -126,6 +126,11 @@ func defaultWaitSendMenu() *Menu {
 // настройки только кнопок
 func defaultCreateTicketMenuBtnCnf() *Menu {
 	return &Menu{
+		// задаем заглушку для create_ticket_menu чтобы пропустить ошибку "отсутствует сообщение сопровождающее меню"
+		// используем ее тк пользователь не видит текст указанный в настройках Answer
+		Answer: []*Answer{
+			{Chat: "<create_ticket_answer>"},
+		},
 		Buttons: []*Buttons{
 			{Button{ButtonID: "1", ButtonText: "Далее", Goto: database.CREATE_TICKET}},
 			{Button{ButtonID: "2", ButtonText: "Назад", Goto: database.CREATE_TICKET_PREV_STAGE}},
@@ -216,9 +221,6 @@ func (l *Levels) checkMenus() error {
 		l.Menu[database.WAIT_SEND] = defaultWaitSendMenu()
 	}
 	l.Menu[database.CREATE_TICKET] = defaultCreateTicketMenuBtnCnf()
-	// задаем заглушку для create_ticket_menu чтобы пропустить ошибку "отсутствует сообщение сопровождающее меню"
-	// используем ее тк пользователь не видит текст указанный в настройках Answer
-	l.Menu[database.CREATE_TICKET].Answer = []*Answer{{Chat: "<create_ticket_answer>"}}
 
 	if l.UseQNA.Enabled {
 		if _, ok := l.Menu[database.FAIL_QNA]; !ok {
