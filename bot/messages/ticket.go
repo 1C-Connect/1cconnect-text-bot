@@ -70,6 +70,7 @@ func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetT
 		for _, line := range value.Lines {
 			if line == msg.LineId {
 				kinds = append(kinds, value)
+				break
 			}
 		}
 	}
@@ -122,6 +123,7 @@ func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requ
 					}
 				}
 			}
+			break
 		}
 	}
 
