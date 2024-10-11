@@ -470,6 +470,7 @@ func getGoToIfClickedBackBtn(btn *botconfig_parser.Button, state messages.Chat) 
 	return
 }
 
+// обработать событие произошедшее в чате
 func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.Chat) (string, error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 	menu := c.MustGet("menus").(*botconfig_parser.Levels)
@@ -837,10 +838,13 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 		return database.GREETINGS, err
 	}
 	if btn.AppointSpecButton != nil && *btn.AppointSpecButton != uuid.Nil {
+		// проверяем доступен ли специалист
 		ok, err := msg.GetSpecialistAvailable(c, *btn.AppointSpecButton)
 		if err != nil || !ok {
 			return finalSend(c, msg, chatState, menu.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable, err)
 		}
+
+		// назначаем если свободен
 		err = msg.AppointSpec(c, *btn.AppointSpecButton)
 		return database.GREETINGS, err
 	}
@@ -880,6 +884,7 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 		return database.GREETINGS, err
 	}
 	if btn.RerouteButton != nil && *btn.RerouteButton != uuid.Nil {
+		// проверяем доступна линия пользователю
 		r, err := msg.GetSubscriptions(c, *btn.RerouteButton)
 		if err != nil {
 			return finalSend(c, msg, chatState, "", err)
@@ -888,6 +893,7 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 			return finalSend(c, msg, chatState, menu.ErrorMessages.RerouteButton.SelectedLineNotAvailable, err)
 		}
 
+		// назначаем если все ок
 		err = msg.Reroute(c, *btn.RerouteButton, "")
 		if err != nil {
 			return finalSend(c, msg, chatState, "", err)
@@ -901,11 +907,13 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 			btn.ExecButton = strings.ReplaceAll(btn.ExecButton, " }}", "}}")
 		}
 
-		// заполним шаблон разбив его на части чтобы исключить возможность выйти за кавычки
+		// разбиваем шаблон на части (команда и аргументы) чтобы исключить возможность выйти за кавычки
 		cmdParts, err := shellquote.Split(btn.ExecButton)
 		if err != nil {
 			return finalSend(c, msg, chatState, "", err)
 		}
+
+		// заполняем каждую часть шаблона отдельно
 		for k, part := range cmdParts {
 			cmdParts[k], err = fillTemplateWithInfo(c, msg, part)
 			if err != nil {

@@ -57,7 +57,6 @@ func (msg *Message) GetTicketData(c *gin.Context) (result requests.GetTicketData
 
 // Получение видов услуг
 func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetTicketDataResponse) (kinds []requests.TicketDataKind, err error) {
-
 	if ticketData == nil {
 		ticketData = new(requests.GetTicketDataResponse)
 		*ticketData, err = msg.GetTicketData(c)
@@ -80,7 +79,6 @@ func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetT
 
 // Получение всех типов услуг
 func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData *requests.GetTicketDataResponse) (types []requests.TicketDataType, err error) {
-
 	if ticketData == nil {
 		ticketData = new(requests.GetTicketDataResponse)
 		*ticketData, err = msg.GetTicketData(c)
@@ -96,7 +94,6 @@ func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData *requests.G
 
 // Получение типов услуг у определенной услуги
 func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requests.GetTicketDataResponse, kindId uuid.UUID) (types []requests.TicketDataType, err error) {
-
 	if ticketData == nil {
 		ticketData = new(requests.GetTicketDataResponse)
 		*ticketData, err = msg.GetTicketData(c)
@@ -115,6 +112,7 @@ func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requ
 		return
 	}
 
+	// ищем среди всех услуг виды работ которые доступны по выбранной услуге
 	for _, kind := range allKinds {
 		if kind.ID == kindId {
 			for _, kindType := range kind.Types {
