@@ -807,12 +807,8 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 	var err error
 
 	goTo := btn.Goto
-	if btn.BackButton {
-		if state.PreviousState != database.GREETINGS {
-			goTo = state.PreviousState
-		} else {
-			goTo = database.START
-		}
+	if gt := getGoToIfClickedBackBtn(btn, state); gt != "" {
+		goTo = gt
 	}
 
 	for i := 0; i < len(btn.Chat); i++ {
