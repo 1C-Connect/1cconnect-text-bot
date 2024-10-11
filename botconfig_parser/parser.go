@@ -290,6 +290,10 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 	var modifycatorCount = 0
 
 	if b.Button.SaveToVar != nil {
+		if l.SaveToVar != nil {
+			b.Button.SetDefault(*l.SaveToVar)
+		}
+
 		if b.Button.SaveToVar.VarName == "" {
 			return fmt.Errorf("отсутствует var_name (имя переменной для сохранения данных): %s %#v lvl:%d", k, b, depthLevel)
 		}
@@ -306,6 +310,10 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 	}
 
 	if b.Button.TicketButton != nil {
+		if l.TicketButton != nil {
+			b.Button.SetDefault(*l.TicketButton)
+		}
+
 		tBtn := b.Button.TicketButton
 		if tBtn.ChannelID == uuid.Nil {
 			return fmt.Errorf("отсутствует канал связи (channel_id): %s %#v lvl:%d", k, b, depthLevel)
@@ -377,32 +385,46 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 		modifycatorCount++
 	}
 
-	if b.Button.CloseButton && l.CloseButton != nil {
-		b.Button.SetDefault(*l.CloseButton)
+	if b.Button.CloseButton {
+		if l.CloseButton != nil {
+			b.Button.SetDefault(*l.CloseButton)
+		}
 		modifycatorCount++
 	}
-	if b.Button.RedirectButton && l.RedirectButton != nil {
-		b.Button.SetDefault(*l.RedirectButton)
+	if b.Button.RedirectButton {
+		if l.RedirectButton != nil {
+			b.Button.SetDefault(*l.RedirectButton)
+		}
 		modifycatorCount++
 	}
-	if b.Button.BackButton && l.BackButton != nil {
-		b.Button.SetDefault(*l.BackButton)
+	if b.Button.BackButton {
+		if l.BackButton != nil {
+			b.Button.SetDefault(*l.BackButton)
+		}
 		modifycatorCount++
 	}
-	if b.Button.AppointSpecButton != nil && *b.Button.AppointSpecButton != uuid.Nil && l.AppointSpecButton != nil {
-		b.Button.SetDefault(*l.AppointSpecButton)
+	if b.Button.AppointSpecButton != nil && *b.Button.AppointSpecButton != uuid.Nil {
+		if l.AppointSpecButton != nil {
+			b.Button.SetDefault(*l.AppointSpecButton)
+		}
 		modifycatorCount++
 	}
-	if b.Button.AppointRandomSpecFromListButton != nil && len(*b.Button.AppointRandomSpecFromListButton) != 0 && l.AppointRandomSpecFromListButton != nil {
-		b.Button.SetDefault(*l.AppointRandomSpecFromListButton)
+	if b.Button.AppointRandomSpecFromListButton != nil && len(*b.Button.AppointRandomSpecFromListButton) != 0 {
+		if l.AppointRandomSpecFromListButton != nil {
+			b.Button.SetDefault(*l.AppointRandomSpecFromListButton)
+		}
 		modifycatorCount++
 	}
-	if b.Button.RerouteButton != nil && *b.Button.RerouteButton != uuid.Nil && l.RerouteButton != nil {
-		b.Button.SetDefault(*l.RerouteButton)
+	if b.Button.RerouteButton != nil && *b.Button.RerouteButton != uuid.Nil {
+		if l.RerouteButton != nil {
+			b.Button.SetDefault(*l.RerouteButton)
+		}
 		modifycatorCount++
 	}
-	if b.Button.ExecButton != "" && l.ExecButton != nil {
-		b.Button.SetDefault(*l.ExecButton)
+	if b.Button.ExecButton != "" {
+		if l.ExecButton != nil {
+			b.Button.SetDefault(*l.ExecButton)
+		}
 		modifycatorCount++
 	}
 

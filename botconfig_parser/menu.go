@@ -7,15 +7,15 @@ type Levels struct {
 
 	UseQNA QNA `yaml:"use_qna"`
 
-	BackButton                      *Button       `yaml:"back_button"`
-	CloseButton                     *Button       `yaml:"close_button"`
-	RedirectButton                  *Button       `yaml:"redirect_button"`
-	AppointSpecButton               *Button       `yaml:"appoint_spec_button"`
-	AppointRandomSpecFromListButton *Button       `yaml:"appoint_random_spec_from_list_button"`
-	RerouteButton                   *Button       `yaml:"reroute_button"`
-	ExecButton                      *Button       `yaml:"exec_button"`
-	SaveToVar                       *SaveToVar    `yaml:"save_to_var"`
-	TicketButton                    *TicketButton `yaml:"ticket_button"`
+	BackButton                      *Button `yaml:"back_button"`
+	CloseButton                     *Button `yaml:"close_button"`
+	RedirectButton                  *Button `yaml:"redirect_button"`
+	AppointSpecButton               *Button `yaml:"appoint_spec_button"`
+	AppointRandomSpecFromListButton *Button `yaml:"appoint_random_spec_from_list_button"`
+	RerouteButton                   *Button `yaml:"reroute_button"`
+	ExecButton                      *Button `yaml:"exec_button"`
+	SaveToVar                       *Button `yaml:"save_to_var"`
+	TicketButton                    *Button `yaml:"ticket_button"`
 
 	GreetingMessage string `yaml:"greeting_message"`
 	FirstGreeting   bool   `yaml:"first_greeting"`
