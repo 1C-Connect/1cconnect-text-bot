@@ -20,23 +20,21 @@ const (
 )
 
 // данные для формирования заявки
-type Ticket struct {
-	ChannelID   uuid.UUID
-	Theme       string
-	Description string
-	Executor    struct {
-		Id   uuid.UUID
-		Name string
+type (
+	Ticket struct {
+		ChannelID   uuid.UUID
+		Theme       string
+		Description string
+		Executor    TicketPart
+		Service     TicketPart
+		ServiceType TicketPart
 	}
-	Service struct {
-		Id   uuid.UUID
-		Name string
+
+	TicketPart struct {
+		ID   uuid.UUID
+		Name *string
 	}
-	ServiceType struct {
-		Id   uuid.UUID
-		Name string
-	}
-}
+)
 
 func (t *Ticket) GetChannel() string     { return "channel" }
 func (t *Ticket) GetTheme() string       { return "theme" }

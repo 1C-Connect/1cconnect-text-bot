@@ -53,36 +53,36 @@ func (msg *Message) ChangeCache(c *gin.Context, chatState *Chat) error {
 	return nil
 }
 
-func (msg *Message) ChangeCacheTicket(c *gin.Context, chatState *Chat, key string, value []string) error {
+func (msg *Message) ChangeCacheTicket(c *gin.Context, chatState *Chat, key string, value database.TicketPart) error {
 	t := database.Ticket{}
 
 	switch key {
-	case t.GetChannel(), t.GetTheme(), t.GetDescription():
-		if len(value) != 1 {
-			return errors.New(fmt.Sprint("Неверное количество аргументов для:", key))
+	case t.GetChannel():
+		if value.ID == uuid.Nil {
+			return fmt.Errorf("не передан ID для: %s", key)
+		}
+		chatState.Ticket.ChannelID = value.ID
+	case t.GetTheme(), t.GetDescription():
+		if value.Name == nil {
+			return fmt.Errorf("не передан Name для: %s", key)
 		}
 		switch key {
-		case t.GetChannel():
-			chatState.Ticket.ChannelID = uuid.MustParse(value[0])
 		case t.GetTheme():
-			chatState.Ticket.Theme = value[0]
+			chatState.Ticket.Theme = *value.Name
 		case t.GetDescription():
-			chatState.Ticket.Description = value[0]
+			chatState.Ticket.Description = *value.Name
 		}
 	case t.GetExecutor(), t.GetService(), t.GetServiceType():
-		if len(value) != 2 {
-			return errors.New(fmt.Sprint("Неверное количество аргументов для:", key))
+		if value.ID == uuid.Nil || value.Name == nil {
+			return fmt.Errorf("не передан ID и/или Name для: %s", key)
 		}
 		switch key {
 		case t.GetExecutor():
-			chatState.Ticket.Executor.Id = uuid.MustParse(value[0])
-			chatState.Ticket.Executor.Name = value[1]
+			chatState.Ticket.Executor = value
 		case t.GetService():
-			chatState.Ticket.Service.Id = uuid.MustParse(value[0])
-			chatState.Ticket.Service.Name = value[1]
+			chatState.Ticket.Service = value
 		case t.GetServiceType():
-			chatState.Ticket.ServiceType.Id = uuid.MustParse(value[0])
-			chatState.Ticket.ServiceType.Name = value[1]
+			chatState.Ticket.ServiceType = value
 		}
 	}
 

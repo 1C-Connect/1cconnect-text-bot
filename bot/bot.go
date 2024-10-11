@@ -222,7 +222,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			}
 
 			// присвоить значение по умолчанию
-			err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{defaultValue})
+			err = msg.ChangeCacheTicket(c, chatState, nextVar, database.TicketPart{Name: &defaultValue})
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
@@ -246,7 +246,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			}
 
 			// присвоить значение по умолчанию
-			err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{defaultValue})
+			err = msg.ChangeCacheTicket(c, chatState, nextVar, database.TicketPart{Name: &defaultValue})
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
@@ -270,7 +270,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", r.Surname, r.Name, r.Patronymic))
 
 			// присвоить значение по умолчанию
-			err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{r.UserId.String(), fio})
+			err = msg.ChangeCacheTicket(c, chatState, nextVar, database.TicketPart{ID: r.UserId, Name: &fio})
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
@@ -311,7 +311,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			isFind := false
 			for _, k := range kinds {
 				if k.ID.String() == *button.Data.Service.DefaultValue {
-					err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{k.ID.String(), k.Name})
+					err = msg.ChangeCacheTicket(c, chatState, nextVar, database.TicketPart{ID: k.ID, Name: &k.Name})
 					if err != nil {
 						return finalSend(c, msg, chatState, "", err)
 					}
@@ -342,7 +342,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 	if nextVar == ticket.GetServiceType() {
 		text = button.Data.ServiceType.Text
 		if button.Data.ServiceType.DefaultValue != nil {
-			types, err := msg.GetTicketDataTypesWhereKind(c, ticketData, chatState.Ticket.Service.Id)
+			types, err := msg.GetTicketDataTypesWhereKind(c, ticketData, chatState.Ticket.Service.ID)
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
@@ -351,7 +351,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			isFind := false
 			for _, t := range types {
 				if t.ID.String() == *button.Data.ServiceType.DefaultValue {
-					err = msg.ChangeCacheTicket(c, chatState, nextVar, []string{t.ID.String(), t.Name})
+					err = msg.ChangeCacheTicket(c, chatState, nextVar, database.TicketPart{ID: t.ID, Name: &t.Name})
 					if err != nil {
 						return finalSend(c, msg, chatState, "", err)
 					}
@@ -367,7 +367,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			nextVar = "FINAL"
 		} else {
 			// формируем клавиатуру
-			kindTypes, err := msg.GetTicketDataTypesWhereKind(c, nil, chatState.Ticket.Service.Id)
+			kindTypes, err := msg.GetTicketDataTypesWhereKind(c, nil, chatState.Ticket.Service.ID)
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
@@ -567,7 +567,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
 					textForSave = ""
 				}
-				err = msg.ChangeCacheTicket(c, chatState, varName, []string{textForSave})
+				err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{Name: &textForSave})
 				if err != nil {
 					return finalSend(c, msg, chatState, "", err)
 				}
@@ -580,7 +580,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
 					textForSave = ""
 				}
-				err = msg.ChangeCacheTicket(c, chatState, varName, []string{textForSave})
+				err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{Name: &textForSave})
 				if err != nil {
 					return finalSend(c, msg, chatState, "", err)
 				}
@@ -602,7 +602,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					for _, v := range listSpecs {
 						fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic))
 						if msg.Text == fio {
-							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.UserId.String(), msg.Text})
+							err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.UserId, Name: &msg.Text})
 							if err != nil {
 								return finalSend(c, msg, chatState, "", err)
 							}
@@ -629,7 +629,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				} else {
 					for _, v := range kinds {
 						if msg.Text == v.Name {
-							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), msg.Text})
+							err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.ID, Name: &msg.Text})
 							if err != nil {
 								return finalSend(c, msg, chatState, "", err)
 							}
@@ -644,7 +644,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				}
 
 			case ticket.GetServiceType():
-				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.Id)
+				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.ID)
 				if err != nil {
 					return finalSend(c, msg, chatState, "", err)
 				}
@@ -656,7 +656,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				} else {
 					for _, v := range types {
 						if msg.Text == v.Name {
-							err = msg.ChangeCacheTicket(c, chatState, varName, []string{v.ID.String(), msg.Text})
+							err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.ID, Name: &msg.Text})
 							if err != nil {
 								return finalSend(c, msg, chatState, "", err)
 							}
@@ -982,7 +982,7 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 		t := database.Ticket{}
 
 		// сохраняем id канала поступления заявки
-		err = msg.ChangeCacheTicket(c, chatState, t.GetChannel(), []string{btn.TicketButton.ChannelID.String()})
+		err = msg.ChangeCacheTicket(c, chatState, t.GetChannel(), database.TicketPart{ID: btn.TicketButton.ChannelID})
 		if err != nil {
 			return finalSend(c, msg, chatState, "", err)
 		}
