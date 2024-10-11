@@ -165,7 +165,7 @@ func SendAnswerMenuFile(c *gin.Context, msg *messages.Message, menu *botconfig_p
 }
 
 // отобразить настройки меню
-func SendAnswerMenu(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, goTo string, keyboard *[][]requests.KeyboardKey) error {
+func SendAnswerMenu(c *gin.Context, msg *messages.Message, menu *botconfig_parser.Levels, goTo string, keyboard *[][]requests.KeyboardKey) error {
 	var toSend *[][]requests.KeyboardKey
 
 	for i := 0; i < len(menu.Menu[goTo].Answer); i++ {
@@ -186,7 +186,7 @@ func SendAnswerMenu(c *gin.Context, msg *messages.Message, chatState *messages.C
 
 // отобразить меню и выполнить do_button если есть
 func SendAnswer(c *gin.Context, msg *messages.Message, chatState *messages.Chat, menu *botconfig_parser.Levels, goTo string, err error) (string, error) {
-	errMenu := SendAnswerMenu(c, msg, chatState, menu, goTo, menu.GenKeyboard(goTo))
+	errMenu := SendAnswerMenu(c, msg, menu, goTo, menu.GenKeyboard(goTo))
 	if errMenu != nil {
 		return finalSend(c, msg, chatState, "", err)
 	}
@@ -946,7 +946,7 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 			msg.Send(c, r, keyboard)
 		} else {
 			// выводим default WAIT_SEND меню в случае отсутствия настроек текста
-			err = SendAnswerMenu(c, msg, chatState, menu, goTo, keyboard)
+			err = SendAnswerMenu(c, msg, menu, goTo, keyboard)
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
