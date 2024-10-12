@@ -928,7 +928,11 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 		// настройка клавиатуры
 		keyboard := &[][]requests.KeyboardKey{}
 		for _, v := range btn.SaveToVar.OfferOptions {
-			*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v}})
+			r, err := fillTemplateWithInfo(c, msg, v)
+			if err != nil {
+				return finalSend(c, msg, chatState, "", err)
+			}
+			*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: r}})
 		}
 		*keyboard = append(*keyboard, *menu.GenKeyboard(database.WAIT_SEND)...)
 
