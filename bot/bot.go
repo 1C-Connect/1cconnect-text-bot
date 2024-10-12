@@ -561,7 +561,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 			}
 
 			switch varName {
-			case ticket.GetTheme():
+			case ticket.GetTheme(), ticket.GetDescription():
 				textForSave := msg.Text
 				// если кнопка перехода к следующему шагу
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
@@ -572,20 +572,12 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					return finalSend(c, msg, chatState, "", err)
 				}
 
-				return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetDescription())
-
-			case ticket.GetDescription():
-				textForSave := msg.Text
-				// если кнопка перехода к следующему шагу
-				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					textForSave = ""
+				switch varName {
+				case ticket.GetTheme():
+					return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetDescription())
+				case ticket.GetDescription():
+					return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetExecutor())
 				}
-				err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{Name: &textForSave})
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-
-				return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetExecutor())
 
 			case ticket.GetExecutor():
 				// получаем список специалистов
