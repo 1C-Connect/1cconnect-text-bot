@@ -579,81 +579,66 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetExecutor())
 				}
 
-			case ticket.GetExecutor():
-				// получаем список специалистов
-				listSpecs, err := msg.GetSpecialists(c, msg.LineId)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
-
+			case ticket.GetExecutor(), ticket.GetService(), ticket.GetServiceType():
 				// если кнопка перехода к следующему шагу
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
 					err = msg.Send(c, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
 					return database.CREATE_TICKET, err
 				} else {
-					for _, v := range listSpecs {
-						fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic))
-						if msg.Text == fio {
-							err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.UserId, Name: &msg.Text})
-							if err != nil {
-								return finalSend(c, msg, chatState, "", err)
-							}
-
-							return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetService())
+					switch varName {
+					case ticket.GetExecutor():
+						// получаем список специалистов
+						listSpecs, err := msg.GetSpecialists(c, msg.LineId)
+						if err != nil {
+							return finalSend(c, msg, chatState, "", err)
 						}
-					}
-					// если не найдено значение то ошибка
-					err = msg.Send(c, menu.ErrorMessages.TicketButton.ReceivedIncorrectValue, nil)
-					return database.CREATE_TICKET, err
-				}
 
-			case ticket.GetService():
-				// получаем данные для заявок
-				kinds, err := msg.GetTicketDataKinds(c, nil)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
+						for _, v := range listSpecs {
+							fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic))
+							if msg.Text == fio {
+								err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.UserId, Name: &msg.Text})
+								if err != nil {
+									return finalSend(c, msg, chatState, "", err)
+								}
 
-				// если кнопка перехода к следующему шагу
-				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					err = msg.Send(c, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
-					return database.CREATE_TICKET, err
-				} else {
-					for _, v := range kinds {
-						if msg.Text == v.Name {
-							err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.ID, Name: &msg.Text})
-							if err != nil {
-								return finalSend(c, msg, chatState, "", err)
+								return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetService())
 							}
-
-							return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetServiceType())
 						}
-					}
 
-					// если не найдено значение то ошибка
-					err = msg.Send(c, menu.ErrorMessages.TicketButton.ReceivedIncorrectValue, nil)
-					return database.CREATE_TICKET, err
-				}
+					case ticket.GetService():
+						// получаем данные для заявок
+						kinds, err := msg.GetTicketDataKinds(c, nil)
+						if err != nil {
+							return finalSend(c, msg, chatState, "", err)
+						}
 
-			case ticket.GetServiceType():
-				types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.ID)
-				if err != nil {
-					return finalSend(c, msg, chatState, "", err)
-				}
+						for _, v := range kinds {
+							if msg.Text == v.Name {
+								err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.ID, Name: &msg.Text})
+								if err != nil {
+									return finalSend(c, msg, chatState, "", err)
+								}
 
-				// если кнопка перехода к следующему шагу
-				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					err = msg.Send(c, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
-					return database.CREATE_TICKET, err
-				} else {
-					for _, v := range types {
-						if msg.Text == v.Name {
-							err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.ID, Name: &msg.Text})
-							if err != nil {
-								return finalSend(c, msg, chatState, "", err)
+								return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetServiceType())
 							}
+						}
 
-							return nextStageTicketButton(c, msg, chatState, tBtn, "FINAL")
+					case ticket.GetServiceType():
+						// получаем данные для заявок
+						types, err := msg.GetTicketDataTypesWhereKind(c, nil, state.Ticket.Service.ID)
+						if err != nil {
+							return finalSend(c, msg, chatState, "", err)
+						}
+
+						for _, v := range types {
+							if msg.Text == v.Name {
+								err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.ID, Name: &msg.Text})
+								if err != nil {
+									return finalSend(c, msg, chatState, "", err)
+								}
+
+								return nextStageTicketButton(c, msg, chatState, tBtn, "FINAL")
+							}
 						}
 					}
 
