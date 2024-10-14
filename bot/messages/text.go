@@ -15,8 +15,8 @@ import (
 
 	"connect-text-bot/bot/client"
 	"connect-text-bot/bot/requests"
-	"connect-text-bot/config"
-	"connect-text-bot/logger"
+	"connect-text-bot/internal/config"
+	"connect-text-bot/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

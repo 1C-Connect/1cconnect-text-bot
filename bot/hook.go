@@ -2,8 +2,8 @@ package bot
 
 import (
 	"connect-text-bot/bot/client"
-	"connect-text-bot/config"
-	"connect-text-bot/logger"
+	"connect-text-bot/internal/config"
+	"connect-text-bot/internal/logger"
 
 	"github.com/gin-gonic/gin"
 )

@@ -16,10 +16,10 @@ import (
 
 	"connect-text-bot/bot/messages"
 	"connect-text-bot/bot/requests"
-	"connect-text-bot/botconfig_parser"
-	"connect-text-bot/config"
-	"connect-text-bot/database"
-	"connect-text-bot/logger"
+	"connect-text-bot/internal/botconfig_parser"
+	"connect-text-bot/internal/config"
+	"connect-text-bot/internal/database"
+	"connect-text-bot/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

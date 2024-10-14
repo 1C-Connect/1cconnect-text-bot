@@ -3,7 +3,7 @@ package messages
 import (
 	"connect-text-bot/bot/client"
 	"connect-text-bot/bot/requests"
-	"connect-text-bot/config"
+	"connect-text-bot/internal/config"
 	"encoding/json"
 	"net/http"
 	"net/url"

@@ -3,7 +3,7 @@ package database
 import (
 	"time"
 
-	"connect-text-bot/logger"
+	"connect-text-bot/internal/logger"
 
 	"github.com/allegro/bigcache/v3"
 	"github.com/gin-gonic/gin"

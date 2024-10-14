@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"connect-text-bot/bot/requests"
-	"connect-text-bot/database"
-	"connect-text-bot/logger"
+	"connect-text-bot/internal/database"
+	"connect-text-bot/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

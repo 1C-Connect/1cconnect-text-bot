@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"connect-text-bot/logger"
+	"connect-text-bot/internal/logger"
 
 	"github.com/goccy/go-yaml"
 )

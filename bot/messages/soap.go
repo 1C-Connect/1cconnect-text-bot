@@ -1,9 +1,9 @@
 package messages
 
 import (
-	"connect-text-bot/config"
-	"connect-text-bot/database"
-	"connect-text-bot/us"
+	"connect-text-bot/internal/config"
+	"connect-text-bot/internal/database"
+	"connect-text-bot/internal/us"
 	"context"
 	"time"
 
