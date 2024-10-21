@@ -45,14 +45,14 @@ func Receive(c *gin.Context) {
 
 	cCp := c.Copy()
 	go func(cCp *gin.Context, msg messages.Message) {
-		chatState := msg.GetState(c)
+		chatState := msg.GetState(cCp)
 
-		newState, err := processMessage(c, &msg, &chatState)
+		newState, err := processMessage(cCp, &msg, &chatState)
 		if err != nil {
 			logger.Warning("Error processMessage", err)
 		}
 
-		err = msg.ChangeCacheState(c, &chatState, newState)
+		err = msg.ChangeCacheState(cCp, &chatState, newState)
 		if err != nil {
 			logger.Warning("Error changeState", err)
 		}
