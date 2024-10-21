@@ -162,7 +162,7 @@ func SendAnswerMenuFile(c *gin.Context, msg *messages.Message, menu *botconfig_p
 func SendAnswerMenu(c *gin.Context, msg *messages.Message, menu *botconfig_parser.Levels, goTo string, keyboard *[][]requests.KeyboardKey) error {
 	var toSend *[][]requests.KeyboardKey
 
-	for i := 0; i < len(menu.Menu[goTo].Answer); i++ {
+	for i := range len(menu.Menu[goTo].Answer) {
 		// Отправляем клаву только с последним сообщением.
 		// Т.к в дп4 криво отображается.
 		if i == len(menu.Menu[goTo].Answer)-1 {
@@ -659,7 +659,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					}
 
 					// даем время чтобы загрузилась заявка
-					for i := 0; i < 10; i++ {
+					for range 10 {
 						time.Sleep(4 * time.Second)
 
 						_, err := msg.GetTicket(c, uuid.MustParse(r["ServiceRequestID"]))
@@ -779,7 +779,7 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 		goTo = gt
 	}
 
-	for i := 0; i < len(btn.Chat); i++ {
+	for i := range len(btn.Chat) {
 		err := SendAnswerMenuChat(c, msg, btn.Chat[i], nil)
 		if err != nil {
 			return finalSend(c, msg, chatState, "", err)
@@ -827,9 +827,9 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 
 		// ищем среди свободных специалистов нужных
 		neededSpec := make([]uuid.UUID, 0)
-		for i := 0; i < len(r); i++ {
-			if _, exists := specIDs[r[i]]; exists {
-				neededSpec = append(neededSpec, r[i])
+		for _, v := range r {
+			if _, exists := specIDs[v]; exists {
+				neededSpec = append(neededSpec, v)
 			}
 		}
 
