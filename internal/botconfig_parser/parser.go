@@ -525,7 +525,7 @@ func (l *Levels) GenKeyboard(menu string) *[][]requests.KeyboardKey {
 
 func (l *Levels) GetButton(menu, text string) *Button {
 	for _, v := range l.Menu[menu].Buttons {
-		if text == strings.ToLower(strings.TrimSpace(v.Button.ButtonText)) || text == v.Button.ButtonID {
+		if text == strings.ToLower(strings.TrimSpace(v.Button.ButtonText)) || (v.Button.ButtonID != "" && text == v.Button.ButtonID) {
 			return &v.Button
 		}
 	}
