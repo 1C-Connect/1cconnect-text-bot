@@ -358,7 +358,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			}
 
 			// переходим к следующее шагу
-			nextVar = "FINAL"
+			nextVar = ticket.GetFinal()
 		} else {
 			// формируем клавиатуру
 			kindTypes, err := msg.GetTicketDataTypesWhereKind(c, nil, chatState.Ticket.Service.ID)
@@ -373,7 +373,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			*keyboard = append(*keyboard, btnCancel)
 		}
 	}
-	if nextVar == "FINAL" {
+	if nextVar == ticket.GetFinal() {
 		text = button.TicketInfo
 		*keyboard = append(*keyboard, btnConfirm)
 		*keyboard = append(*keyboard, btnBack)
@@ -400,7 +400,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 func prevStageTicketButton(c *gin.Context, msg *messages.Message, chatState *messages.Chat, button *botconfig_parser.TicketButton, currentVar string) (string, error) {
 	t := database.Ticket{}
 
-	if currentVar == "FINAL" {
+	if currentVar == t.GetFinal() {
 		currentVar = t.GetServiceType()
 		if button.Data.ServiceType.DefaultValue == nil {
 			return nextStageTicketButton(c, msg, chatState, button, currentVar)
@@ -631,7 +631,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 									return finalSend(c, msg, chatState, "", err)
 								}
 
-								return nextStageTicketButton(c, msg, chatState, tBtn, "FINAL")
+								return nextStageTicketButton(c, msg, chatState, tBtn, ticket.GetFinal())
 							}
 						}
 					}
@@ -642,7 +642,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 				}
 
 			// этап регистрации заявки
-			case "FINAL":
+			case ticket.GetFinal():
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
 					// удаляем клавиатуру
 					err = msg.DropKeyboard(c)

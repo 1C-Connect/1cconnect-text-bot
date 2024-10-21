@@ -42,3 +42,4 @@ func (_ *Ticket) GetDescription() string { return "description" }
 func (_ *Ticket) GetExecutor() string    { return "executor" }
 func (_ *Ticket) GetService() string     { return "service" }
 func (_ *Ticket) GetServiceType() string { return "type" }
+func (_ *Ticket) GetFinal() string       { return "FINAL" }
