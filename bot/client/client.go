@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -41,9 +41,9 @@ func (e *HttpError) Error() string {
 	return fmt.Sprintf("Http request failed for %s with code %d and message:\n%s", e.Url, e.Code, e.Message)
 }
 
-func SetHook(cnf *config.Conf, lineId uuid.UUID) (content []byte, err error) {
+func SetHook(cnf *config.Conf, lineID uuid.UUID) (content []byte, err error) {
 	data := requests.HookSetupRequest{
-		Id:   lineId,
+		ID:   lineID,
 		Type: "bot",
 		Url:  cnf.Server.Host + "/connect-push/receive/",
 	}
@@ -55,15 +55,15 @@ func SetHook(cnf *config.Conf, lineId uuid.UUID) (content []byte, err error) {
 	return Invoke(cnf, http.MethodPost, "/hook/", nil, "application/json", jsonData)
 }
 
-func DeleteHook(cnf *config.Conf, lineId uuid.UUID) (content []byte, err error) {
-	return Invoke(cnf, http.MethodDelete, "/hook/bot/"+lineId.String()+"/", nil, "application/json", nil)
+func DeleteHook(cnf *config.Conf, lineID uuid.UUID) (content []byte, err error) {
+	return Invoke(cnf, http.MethodDelete, "/hook/bot/"+lineID.String()+"/", nil, "application/json", nil)
 }
 
-func Invoke(cnf *config.Conf, method string, methodUrl string, url_params url.Values, contentType string, body []byte) (content []byte, err error) {
+func Invoke(cnf *config.Conf, method string, methodUrl string, urlParams url.Values, contentType string, body []byte) (content []byte, err error) {
 	methodUrl = strings.Trim(methodUrl, "/")
 	reqUrl := cnf.Connect.Server + "/v1/" + methodUrl + "/"
-	if url_params != nil {
-		reqUrl += "?" + url_params.Encode()
+	if urlParams != nil {
+		reqUrl += "?" + urlParams.Encode()
 	}
 
 	req, err := http.NewRequest(method, reqUrl, bytes.NewBuffer(body))
@@ -82,7 +82,7 @@ func Invoke(cnf *config.Conf, method string, methodUrl string, url_params url.Va
 		return nil, err
 	} else {
 		defer resp.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		logger.Debug("<--- request", req.Method, reqUrl, "with body", bodyBytes)
 		if err != nil {
 			logger.Warning("Error while read response body", err)

@@ -450,7 +450,7 @@ type ValueListItemType struct {
 	Picture struct {
 	} `xml:"picture,omitempty" json:"picture,omitempty"`
 
-	Id int64 `xml:"id,omitempty" json:"id,omitempty"`
+	ID int64 `xml:"id,omitempty" json:"id,omitempty"`
 
 	FormatPresentationSpecified bool `xml:"formatPresentationSpecified,omitempty" json:"formatPresentationSpecified,omitempty"`
 

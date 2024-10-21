@@ -40,8 +40,8 @@ const (
 
 type (
 	Message struct {
-		LineId uuid.UUID `json:"line_id" binding:"required" example:"4e48509f-6366-4897-9544-46f006e47074"`
-		UserId uuid.UUID `json:"user_id" binding:"required" example:"4e48509f-6366-4897-9544-46f006e47074"`
+		LineID uuid.UUID `json:"line_id" binding:"required" example:"4e48509f-6366-4897-9544-46f006e47074"`
+		UserID uuid.UUID `json:"user_id" binding:"required" example:"4e48509f-6366-4897-9544-46f006e47074"`
 
 		MessageID     uuid.UUID   `json:"message_id" binding:"required" example:"4e48509f-6366-4897-9544-46f006e47074"`
 		MessageType   MessageType `json:"message_type" binding:"required" example:"1"`
@@ -68,12 +68,12 @@ type (
 )
 
 // GetQNA - Метод позволяет получить варианты ответов на вопрос пользователя в сервисе AutoFAQ.
-func (msg *Message) GetQNA(cnf *config.Conf, skip_greetings, skip_goodbyes bool) *AutofaqRequestBody {
+func (msg *Message) GetQNA(cnf *config.Conf, skipGreetings, skipGoodbyes bool) *AutofaqRequestBody {
 	data := requests.Qna{
-		LineID:        msg.LineId,
-		UserId:        msg.UserId,
-		SkipGreetings: skip_greetings,
-		SkipGoodbyes:  skip_goodbyes,
+		LineID:        msg.LineID,
+		UserID:        msg.UserID,
+		SkipGreetings: skipGreetings,
+		SkipGoodbyes:  skipGoodbyes,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -99,10 +99,10 @@ func (msg *Message) GetQNA(cnf *config.Conf, skip_greetings, skip_goodbyes bool)
 }
 
 // Отметить выбранный вариант подсказки
-func (msg *Message) QnaSelected(cnf *config.Conf, request_id, result_id uuid.UUID) {
+func (_ *Message) QnaSelected(cnf *config.Conf, requestID, resultID uuid.UUID) {
 	data := requests.Selected{
-		Request_ID: request_id,
-		Result_ID:  result_id,
+		RequestID: requestID,
+		ResultID:  resultID,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -118,8 +118,8 @@ func (msg *Message) QnaSelected(cnf *config.Conf, request_id, result_id uuid.UUI
 
 func (msg *Message) Start(cnf *config.Conf) error {
 	data := requests.DropKeyboardRequest{
-		LineID: msg.LineId,
-		UserId: msg.UserId,
+		LineID: msg.LineID,
+		UserID: msg.UserID,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -137,8 +137,8 @@ func (msg *Message) Send(c *gin.Context, text string, keyboard *[][]requests.Key
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	data := requests.MessageRequest{
-		LineID:   msg.LineId,
-		UserId:   msg.UserId,
+		LineID:   msg.LineID,
+		UserID:   msg.UserID,
 		AuthorID: cnf.SpecID,
 		Text:     text,
 		Keyboard: keyboard,
@@ -158,8 +158,8 @@ func (msg *Message) RerouteTreatment(c *gin.Context) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	data := requests.TreatmentRequest{
-		LineID: msg.LineId,
-		UserId: msg.UserId,
+		LineID: msg.LineID,
+		UserID: msg.UserID,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -179,8 +179,8 @@ func (msg *Message) CloseTreatment(c *gin.Context) error {
 	time.Sleep(500 * time.Millisecond)
 
 	data := requests.TreatmentRequest{
-		LineID: msg.LineId,
-		UserId: msg.UserId,
+		LineID: msg.LineID,
+		UserID: msg.UserID,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -194,10 +194,10 @@ func (msg *Message) CloseTreatment(c *gin.Context) error {
 }
 
 func (msg *Message) StartAndReroute(cnf *config.Conf) error {
-	msg.Start(cnf)
+	_ = msg.Start(cnf)
 	data := requests.TreatmentRequest{
-		LineID: msg.LineId,
-		UserId: msg.UserId,
+		LineID: msg.LineID,
+		UserID: msg.UserID,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -211,12 +211,12 @@ func (msg *Message) StartAndReroute(cnf *config.Conf) error {
 }
 
 // Попытаться назначить конкретного специалиста
-func (msg *Message) AppointSpec(c *gin.Context, appoint_spec uuid.UUID) error {
+func (msg *Message) AppointSpec(c *gin.Context, appointSpec uuid.UUID) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
 	data := requests.TreatmentWithSpecAndAuthorRequest{
-		LineID:   msg.LineId,
-		UserId:   msg.UserId,
-		SpecId:   appoint_spec,
+		LineID:   msg.LineID,
+		UserID:   msg.UserID,
+		SpecID:   appointSpec,
 		AuthorID: cnf.SpecID,
 	}
 
@@ -231,35 +231,35 @@ func (msg *Message) AppointSpec(c *gin.Context, appoint_spec uuid.UUID) error {
 }
 
 // Проверить доступен ли специалист по id
-func (msg *Message) GetSpecialistAvailable(c *gin.Context, spec_id uuid.UUID) (available bool, err error) {
-	spec_ids, err := msg.GetSpecialistsAvailable(c)
+func (msg *Message) GetSpecialistAvailable(c *gin.Context, specID uuid.UUID) (available bool, err error) {
+	specIDs, err := msg.GetSpecialistsAvailable(c)
 	if err != nil {
 		return
 	}
 
-	return slices.Contains(spec_ids, spec_id), err
+	return slices.Contains(specIDs, specID), err
 }
 
 // Получить список специалистов доступных по линии
-func (msg *Message) GetSpecialistsAvailable(c *gin.Context) (spec_ids []uuid.UUID, err error) {
+func (msg *Message) GetSpecialistsAvailable(c *gin.Context) (specIDs []uuid.UUID, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
-	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialists/"+msg.LineId.String()+"/available/", nil, "application/json", nil)
+	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialists/"+msg.LineID.String()+"/available/", nil, "application/json", nil)
 	if err != nil {
 		return
 	}
 
-	err = json.Unmarshal(r, &spec_ids)
+	err = json.Unmarshal(r, &specIDs)
 	return
 }
 
 // Перевод обращения на другую линию
-func (msg *Message) Reroute(c *gin.Context, line_id uuid.UUID, quote string) error {
+func (msg *Message) Reroute(c *gin.Context, lineID uuid.UUID, quote string) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
 	data := requests.TreatmentReroute{
-		LineID:   msg.LineId,
-		UserId:   msg.UserId,
-		ToLineId: line_id,
+		LineID:   msg.LineID,
+		UserID:   msg.UserID,
+		ToLineID: lineID,
 		Quote:    quote,
 	}
 
@@ -276,7 +276,7 @@ func (msg *Message) Reroute(c *gin.Context, line_id uuid.UUID, quote string) err
 // Получение информации о пользователе
 func (msg *Message) GetSubscriber(c *gin.Context) (content requests.User, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
-	r, err := client.Invoke(cnf, http.MethodGet, "/line/subscriber/"+msg.UserId.String()+"/", nil, "application/json", nil)
+	r, err := client.Invoke(cnf, http.MethodGet, "/line/subscriber/"+msg.UserID.String()+"/", nil, "application/json", nil)
 	if err != nil {
 		return
 	}
@@ -286,11 +286,11 @@ func (msg *Message) GetSubscriber(c *gin.Context) (content requests.User, err er
 }
 
 // Получение списка линий, подключенных пользователям
-func (msg *Message) GetSubscriptions(c *gin.Context, line_id uuid.UUID) (content requests.Subscriptions, err error) {
+func (msg *Message) GetSubscriptions(c *gin.Context, lineID uuid.UUID) (content requests.Subscriptions, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 	var v = url.Values{}
-	v.Add("user_id", msg.UserId.String())
-	v.Add("line_id", line_id.String())
+	v.Add("user_id", msg.UserID.String())
+	v.Add("line_id", lineID.String())
 
 	r, err := client.Invoke(cnf, http.MethodGet, "/line/subscriptions/", v, "application/json", nil)
 	if err != nil {
@@ -302,9 +302,9 @@ func (msg *Message) GetSubscriptions(c *gin.Context, line_id uuid.UUID) (content
 }
 
 // Получение информации о специалисте
-func (msg *Message) GetSpecialist(c *gin.Context, spec_id uuid.UUID) (content requests.User, err error) {
+func (_ *Message) GetSpecialist(c *gin.Context, specID uuid.UUID) (content requests.User, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
-	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialist/"+spec_id.String()+"/", nil, "application/json", nil)
+	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialist/"+specID.String()+"/", nil, "application/json", nil)
 	if err != nil {
 		return
 	}
@@ -314,12 +314,12 @@ func (msg *Message) GetSpecialist(c *gin.Context, spec_id uuid.UUID) (content re
 }
 
 // Получение информации о специалистах
-func (msg *Message) GetSpecialists(c *gin.Context, line_id uuid.UUID) (content requests.Users, err error) {
+func (_ *Message) GetSpecialists(c *gin.Context, lineID uuid.UUID) (content requests.Users, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	var v = url.Values{}
-	if line_id != uuid.Nil {
-		v.Add("line_id", line_id.String())
+	if lineID != uuid.Nil {
+		v.Add("line_id", lineID.String())
 	}
 
 	r, err := client.Invoke(cnf, http.MethodGet, "/line/specialists/", v, "application/json", nil)
@@ -335,8 +335,8 @@ func (msg *Message) GetSpecialists(c *gin.Context, line_id uuid.UUID) (content r
 func (msg *Message) DropKeyboard(c *gin.Context) (err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 	data := requests.TreatmentRequest{
-		LineID: msg.LineId,
-		UserId: msg.UserId,
+		LineID: msg.LineID,
+		UserID: msg.UserID,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -354,12 +354,12 @@ func getFileName(fileName string) string {
 }
 
 // Метод позволяет отправить файл или изображение в чат
-func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, filepath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
+func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, filePath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	data := requests.FileRequest{
-		LineID:   msg.LineId,
-		UserId:   msg.UserId,
+		LineID:   msg.LineID,
+		UserID:   msg.UserID,
 		AuthorID: cnf.SpecID,
 		FileName: getFileName(fileName),
 		Comment:  comment,
@@ -383,7 +383,7 @@ func (msg *Message) SendFile(c *gin.Context, isImage bool, fileName string, file
 	}
 	_, _ = metaPart.Write(jsonData)
 
-	file, err := os.Open(filepath)
+	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}

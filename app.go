@@ -86,7 +86,7 @@ func main() {
 					if event.Name != "" {
 						if err := watcher.Add(event.Name); err != nil {
 							logger.Warning("Не удалось найти:", event.Name)
-							watcher.Remove(event.Name)
+							_ = watcher.Remove(event.Name)
 						}
 					}
 					logger.Warning("При таких изменениях конфигурации рекомендуется перезагрузить бота!")

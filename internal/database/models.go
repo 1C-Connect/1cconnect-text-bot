@@ -36,9 +36,9 @@ type (
 	}
 )
 
-func (t *Ticket) GetChannel() string     { return "channel" }
-func (t *Ticket) GetTheme() string       { return "theme" }
-func (t *Ticket) GetDescription() string { return "description" }
-func (t *Ticket) GetExecutor() string    { return "executor" }
-func (t *Ticket) GetService() string     { return "service" }
-func (t *Ticket) GetServiceType() string { return "type" }
+func (_ *Ticket) GetChannel() string     { return "channel" }
+func (_ *Ticket) GetTheme() string       { return "theme" }
+func (_ *Ticket) GetDescription() string { return "description" }
+func (_ *Ticket) GetExecutor() string    { return "executor" }
+func (_ *Ticket) GetService() string     { return "service" }
+func (_ *Ticket) GetServiceType() string { return "type" }

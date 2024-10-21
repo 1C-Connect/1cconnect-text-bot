@@ -13,7 +13,7 @@ import (
 )
 
 // Получение заявки Service Desk по ID
-func (msg *Message) GetTicket(c *gin.Context, id uuid.UUID) (content requests.Ticket, err error) {
+func (_ *Message) GetTicket(c *gin.Context, id uuid.UUID) (content requests.Ticket, err error) {
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	r, err := client.Invoke(cnf, http.MethodGet, "/ticket/"+id.String()+"/", nil, "application/json", nil)
@@ -30,7 +30,7 @@ func (msg *Message) GetTicketData(c *gin.Context) (result requests.GetTicketData
 	cnf := c.MustGet("cnf").(*config.Conf)
 
 	v := url.Values{}
-	v.Add("line_id", msg.LineId.String())
+	v.Add("line_id", msg.LineID.String())
 
 	r, err := client.Invoke(cnf, http.MethodGet, "/ticket/data/", v, "application/json", nil)
 	if err != nil {
@@ -46,7 +46,7 @@ func (msg *Message) GetTicketData(c *gin.Context) (result requests.GetTicketData
 	userInfo := msg.GetCacheUserInfo(c)
 
 	for _, v := range content {
-		if v.CounterpartID == userInfo.CounterpartOwnerId {
+		if v.CounterpartID == userInfo.CounterpartOwnerID {
 			result = v
 			break
 		}
@@ -68,7 +68,7 @@ func (msg *Message) GetTicketDataKinds(c *gin.Context, ticketData *requests.GetT
 	// получаем все виды услуг доступные по текущей линии
 	for _, value := range ticketData.Kinds {
 		for _, line := range value.Lines {
-			if line == msg.LineId {
+			if line == msg.LineID {
 				kinds = append(kinds, value)
 				break
 			}
@@ -94,7 +94,7 @@ func (msg *Message) GetTicketDataAllTypes(c *gin.Context, ticketData *requests.G
 }
 
 // Получение типов услуг у определенной услуги
-func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requests.GetTicketDataResponse, kindId uuid.UUID) (types []requests.TicketDataType, err error) {
+func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requests.GetTicketDataResponse, kindID uuid.UUID) (types []requests.TicketDataType, err error) {
 	if ticketData == nil {
 		ticketData = new(requests.GetTicketDataResponse)
 		*ticketData, err = msg.GetTicketData(c)
@@ -115,7 +115,7 @@ func (msg *Message) GetTicketDataTypesWhereKind(c *gin.Context, ticketData *requ
 
 	// ищем среди всех услуг виды работ которые доступны по выбранной услуге
 	for _, kind := range allKinds {
-		if kind.ID == kindId {
+		if kind.ID == kindID {
 			for _, kindType := range kind.Types {
 				for _, type_ := range allTypes {
 					if type_.ID == kindType {

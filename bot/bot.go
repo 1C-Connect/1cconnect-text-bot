@@ -38,7 +38,7 @@ func Receive(c *gin.Context) {
 	logger.Debug("Receive message:", msg)
 
 	// Реагируем только на сообщения пользователя
-	if (msg.MessageType == messages.MESSAGE_TEXT || msg.MessageType == messages.MESSAGE_FILE) && msg.MessageAuthor != nil && msg.UserId != *msg.MessageAuthor {
+	if (msg.MessageType == messages.MESSAGE_TEXT || msg.MessageType == messages.MESSAGE_FILE) && msg.MessageAuthor != nil && msg.UserID != *msg.MessageAuthor {
 		c.Status(http.StatusOK)
 		return
 	}
@@ -102,7 +102,7 @@ func getFileNames(root string) map[string]bool {
 	files := make(map[string]bool)
 
 	root, _ = filepath.Abs(root)
-	filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk(root, func(path string, info fs.FileInfo, _ error) error {
 		// проверяем, что текущий элемент не является директорией
 		if !info.IsDir() {
 			files[path] = true
@@ -138,7 +138,7 @@ func SendAnswerMenuChat(c *gin.Context, msg *messages.Message, answer *botconfig
 		if err != nil {
 			return err
 		}
-		msg.Send(c, r, keyboard)
+		_ = msg.Send(c, r, keyboard)
 	}
 	return nil
 }
@@ -153,7 +153,7 @@ func SendAnswerMenuFile(c *gin.Context, msg *messages.Message, menu *botconfig_p
 				logger.Warning(err)
 			}
 		} else {
-			msg.Send(c, menu.ErrorMessages.FailedSendFile, keyboard)
+			_ = msg.Send(c, menu.ErrorMessages.FailedSendFile, keyboard)
 		}
 	}
 }
@@ -200,10 +200,10 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 
 	// настройки для клавиатуры
 	keyboard := &[][]requests.KeyboardKey{}
-	btnAgain := []requests.KeyboardKey{{Id: "1", Text: "Далее"}}
-	btnBack := []requests.KeyboardKey{{Id: "2", Text: "Назад"}}
-	btnCancel := []requests.KeyboardKey{{Id: "0", Text: "Отмена"}}
-	btnConfirm := []requests.KeyboardKey{{Id: "1", Text: "Подтверждаю"}}
+	btnAgain := []requests.KeyboardKey{{ID: "1", Text: "Далее"}}
+	btnBack := []requests.KeyboardKey{{ID: "2", Text: "Назад"}}
+	btnCancel := []requests.KeyboardKey{{ID: "0", Text: "Отмена"}}
+	btnConfirm := []requests.KeyboardKey{{ID: "1", Text: "Подтверждаю"}}
 
 	// проверяем на какое следующее меню надо отправить
 	if nextVar == ticket.GetTheme() {
@@ -264,7 +264,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", r.Surname, r.Name, r.Patronymic))
 
 			// присвоить значение по умолчанию
-			err = msg.ChangeCacheTicket(c, chatState, nextVar, database.TicketPart{ID: r.UserId, Name: &fio})
+			err = msg.ChangeCacheTicket(c, chatState, nextVar, database.TicketPart{ID: r.UserID, Name: &fio})
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
@@ -273,7 +273,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			nextVar = ticket.GetService()
 		} else {
 			// получаем список специалистов
-			listSpecs, err := msg.GetSpecialists(c, msg.LineId)
+			listSpecs, err := msg.GetSpecialists(c, msg.LineID)
 			if err != nil {
 				return finalSend(c, msg, chatState, "", err)
 			}
@@ -287,7 +287,7 @@ func nextStageTicketButton(c *gin.Context, msg *messages.Message, chatState *mes
 			*keyboard = append(*keyboard, btnCancel)
 		}
 	}
-	var ticketData *requests.GetTicketDataResponse = nil
+	var ticketData *requests.GetTicketDataResponse
 	if nextVar == ticket.GetService() {
 		text = button.Data.Service.Text
 		if button.Data.Service.DefaultValue != nil {
@@ -514,7 +514,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 			}
 
 			if menu.FirstGreeting {
-				msg.Send(c, menu.GreetingMessage, nil)
+				_ = msg.Send(c, menu.GreetingMessage, nil)
 				time.Sleep(time.Second)
 			}
 			return SendAnswer(c, msg, chatState, menu, database.START, err)
@@ -582,7 +582,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 					switch varName {
 					case ticket.GetExecutor():
 						// получаем список специалистов
-						listSpecs, err := msg.GetSpecialists(c, msg.LineId)
+						listSpecs, err := msg.GetSpecialists(c, msg.LineID)
 						if err != nil {
 							return finalSend(c, msg, chatState, "", err)
 						}
@@ -590,7 +590,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						for _, v := range listSpecs {
 							fio := strings.TrimSpace(fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic))
 							if msg.Text == fio {
-								err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.UserId, Name: &msg.Text})
+								err = msg.ChangeCacheTicket(c, chatState, varName, database.TicketPart{ID: v.UserID, Name: &msg.Text})
 								if err != nil {
 									return finalSend(c, msg, chatState, "", err)
 								}
@@ -650,10 +650,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 						return finalSend(c, msg, chatState, "", err)
 					}
 
-					err = msg.Send(c, "Заявка регистрируется, ожидайте...", nil)
-					if err != nil {
-						return finalSend(c, msg, chatState, "", err)
-					}
+					_ = msg.Send(c, "Заявка регистрируется, ожидайте...", nil)
 
 					// регистрируем заявку
 					r, err := msg.ServiceRequestAdd(c, state.Ticket)
@@ -691,7 +688,7 @@ func processMessage(c *gin.Context, msg *messages.Message, chatState *messages.C
 			// записываем введенные данные в переменную
 			varName, ok := msg.GetCacheVar(c, database.VAR_FOR_SAVE)
 			if ok && varName != "" {
-				msg.ChangeCacheVars(c, chatState, varName, msg.Text)
+				_ = msg.ChangeCacheVars(c, chatState, varName, msg.Text)
 			}
 
 			// чистим необязательные поля
@@ -753,14 +750,14 @@ func qnaResponse(c *gin.Context, msg *messages.Message, chatState *messages.Chat
 	var err error
 
 	// logger.Info("QNA", msg, chatState)
-	qnaText, isClose, request_id, result_id := getMessageFromQNA(msg, cnf)
+	qnaText, isClose, requestID, resultID := getMessageFromQNA(msg, cnf)
 	if qnaText != "" {
 		// Была подсказка
-		go msg.QnaSelected(cnf, request_id, result_id)
+		go msg.QnaSelected(cnf, requestID, resultID)
 
 		if isClose {
 			err = msg.Send(c, qnaText, nil)
-			msg.CloseTreatment(c)
+			_ = msg.CloseTreatment(c)
 			return currentMenu, err
 		}
 
@@ -896,7 +893,7 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 		}
 
 		// выводим результат и завершаем
-		msg.Send(c, string(cmdOutput), nil)
+		_ = msg.Send(c, string(cmdOutput), nil)
 		goTo := database.FINAL
 		if btn.Goto != "" {
 			goTo = btn.Goto
@@ -922,7 +919,7 @@ func triggerButton(c *gin.Context, msg *messages.Message, chatState *messages.Ch
 				return finalSend(c, msg, chatState, "", err)
 			}
 
-			msg.Send(c, r, keyboard)
+			_ = msg.Send(c, r, keyboard)
 		} else {
 			// выводим default WAIT_SEND меню в случае отсутствия настроек текста
 			err = SendAnswerMenu(c, msg, menu, goTo, keyboard)
@@ -977,25 +974,25 @@ func finalSend(c *gin.Context, msg *messages.Message, chatState *messages.Chat, 
 	if finalMsg == "" {
 		finalMsg = menu.ErrorMessages.ButtonProcessing
 	}
-	msg.Send(c, finalMsg, nil)
+	_ = msg.Send(c, finalMsg, nil)
 
 	// чистим данные чтобы избежать повторных ошибок
-	msg.ClearCacheOmitemptyFields(c, chatState)
+	_ = msg.ClearCacheOmitemptyFields(c, chatState)
 
 	return SendAnswer(c, msg, chatState, menu, database.FINAL, err)
 }
 
 // getMessageFromQNA - Метод возвращает ответ с Базы Знаний, и флаг, если это сообщение закрывает обращение.
 func getMessageFromQNA(msg *messages.Message, cnf *config.Conf) (string, bool, uuid.UUID, uuid.UUID) {
-	result_id := uuid.Nil
+	resultID := uuid.Nil
 	qnaAnswer := msg.GetQNA(cnf, false, false)
 
 	for _, v := range qnaAnswer.Answers {
 		if v.Accuracy > 0 {
-			result_id = v.ID
-			return v.Text, v.AnswerSource == "GOODBYES", qnaAnswer.RequestID, result_id
+			resultID = v.ID
+			return v.Text, v.AnswerSource == "GOODBYES", qnaAnswer.RequestID, resultID
 		}
 	}
 
-	return "", false, result_id, result_id
+	return "", false, resultID, resultID
 }

@@ -44,7 +44,7 @@ func InitLevels(path string) *Levels {
 	return levels
 }
 
-func (l *Levels) UpdateLevels(path string) error {
+func (_ *Levels) UpdateLevels(path string) error {
 	newLevel, err := loadMenus(path)
 	if err != nil {
 		return err
@@ -515,7 +515,7 @@ func Quotes(s string) string {
 func (l *Levels) GenKeyboard(menu string) *[][]requests.KeyboardKey {
 	answer := &[][]requests.KeyboardKey{}
 	for _, v := range l.Menu[menu].Buttons {
-		*answer = append(*answer, []requests.KeyboardKey{{Id: v.Button.ButtonID, Text: Quotes(v.Button.ButtonText)}})
+		*answer = append(*answer, []requests.KeyboardKey{{ID: v.Button.ButtonID, Text: Quotes(v.Button.ButtonText)}})
 	}
 	if len(*answer) == 0 {
 		return nil

@@ -42,7 +42,7 @@ func (msg *Message) ChangeCache(c *gin.Context, chatState *Chat) error {
 		return err
 	}
 
-	dbStateKey := msg.UserId.String() + ":" + msg.LineId.String()
+	dbStateKey := msg.UserID.String() + ":" + msg.LineID.String()
 
 	err = cache.Set(dbStateKey, data)
 	logger.Debug("Write state to cache result")
@@ -120,12 +120,12 @@ func (msg *Message) GetState(c *gin.Context) Chat {
 
 	var chatState Chat
 
-	dbStateKey := msg.UserId.String() + ":" + msg.LineId.String()
+	dbStateKey := msg.UserID.String() + ":" + msg.LineID.String()
 
 	b, err := cache.Get(dbStateKey)
 	if err != nil {
 		if errors.Is(err, bigcache.ErrEntryNotFound) {
-			logger.Info("No state in cache for " + msg.UserId.String() + ":" + msg.LineId.String())
+			logger.Info("No state in cache for " + msg.UserID.String() + ":" + msg.LineID.String())
 			chatState = Chat{
 				PreviousState: database.GREETINGS,
 				CurrentState:  database.GREETINGS,

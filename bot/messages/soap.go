@@ -35,10 +35,10 @@ func (msg *Message) ServiceRequestAdd(c *gin.Context, ticket database.Ticket) (c
 			Params: &us.Params{
 				Property: []us.ParamsProperty{
 					formProperty("ServiceRequestChannelID", us.XsString, ticket.ChannelID.String()),
-					formProperty("ServiceLineKindID", us.XsString, msg.LineId.String()),
+					formProperty("ServiceLineKindID", us.XsString, msg.LineID.String()),
 					formProperty("ServiceKindID", us.XsString, ticket.Service.ID.String()),
 					formProperty("ServiceRequestTypeID", us.XsString, ticket.ServiceType.ID.String()),
-					formProperty("UserID", us.XsString, msg.UserId.String()),
+					formProperty("UserID", us.XsString, msg.UserID.String()),
 					formProperty("ExecutorID", us.XsString, ticket.Executor.ID.String()),
 					formProperty("Description", us.XsString, ticket.Description),
 					formProperty("Summary", us.XsString, ticket.Theme),
