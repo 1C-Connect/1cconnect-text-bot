@@ -99,11 +99,11 @@ type (
 func (p *ParamsTable) GetResult() (result PropertyValueTable, err error) {
 	for _, v := range p.Property {
 		switch v.Name {
-		case "ResultCode":
-			if v.Value.Text != "SUCCESS" {
+		case ResultCode:
+			if v.Value.Text != SUCCESS {
 				err = errors.New(fmt.Sprint("ResultCode:", v.Value.Text))
 			}
-		case "ResultData":
+		case ResultData:
 			if err != nil {
 				err = errors.New(fmt.Sprint(err, " ResultData:", v.Value.Text))
 			}
@@ -117,11 +117,11 @@ func (p *ParamsTable) GetResult() (result PropertyValueTable, err error) {
 func (p *ParamsStructure) GetResult() (result []PropertyValuePropertyStructure, err error) {
 	for _, v := range p.Property {
 		switch v.Name {
-		case "ResultCode":
-			if v.Value.Text != "SUCCESS" {
+		case ResultCode:
+			if v.Value.Text != SUCCESS {
 				err = errors.New(fmt.Sprint("ResultCode:", v.Value.Text))
 			}
-		case "ResultData":
+		case ResultData:
 			if err != nil {
 				err = errors.New(fmt.Sprint(err, " ResultData:", v.Value.Text))
 			}
@@ -135,11 +135,11 @@ func (p *ParamsStructure) GetResult() (result []PropertyValuePropertyStructure, 
 func (p *Params) GetResult() (result PropertyValue, err error) {
 	for _, v := range p.Property {
 		switch v.Name {
-		case "ResultCode":
-			if v.Value.Text != "SUCCESS" {
+		case ResultCode:
+			if v.Value.Text != SUCCESS {
 				err = errors.New(fmt.Sprint("ResultCode:", v.Value.Text))
 			}
-		case "ResultData":
+		case ResultData:
 			if err != nil {
 				err = errors.New(fmt.Sprint(err, " ResultData:", v.Value.Text))
 			}
