@@ -1,6 +1,11 @@
 package botconfig_parser
 
-import "github.com/google/uuid"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/google/uuid"
+)
 
 type Levels struct {
 	Menu map[string]*Menu `yaml:"menus"`
@@ -122,6 +127,100 @@ type Button struct {
 	Goto string `yaml:"goto"`
 	// вложенное меню
 	NestedMenu *NestedMenu `yaml:"menu"`
+}
+
+func (b Button) View() (btnStr string) {
+	btnStr += fmt.Sprintf("\n\tButtonID: %s", b.ButtonID)
+	btnStr += fmt.Sprintf("\n\tButtonText: %s", b.ButtonText)
+	btnStr += fmt.Sprintf("\n\tlen(Chat): %d", len(b.Chat))
+
+	btnCnf := make([]string, 0)
+	if b.CloseButton {
+		btnCnf = append(btnCnf, "CloseButton")
+	}
+	if b.RedirectButton {
+		btnCnf = append(btnCnf, "RedirectButton")
+	}
+	if b.BackButton {
+		btnCnf = append(btnCnf, "BackButton")
+	}
+	if b.AppointSpecButton != nil {
+		btnCnf = append(btnCnf, "AppointSpecButton")
+	}
+	if b.AppointRandomSpecFromListButton != nil {
+		btnCnf = append(btnCnf, "AppointRandomSpecFromListButton")
+	}
+	if b.RerouteButton != nil {
+		btnCnf = append(btnCnf, "RerouteButton")
+	}
+	if b.ExecButton != "" {
+		btnCnf = append(btnCnf, "ExecButton")
+	}
+	if b.SaveToVar != nil {
+		btnCnf = append(btnCnf, "SaveToVar")
+	}
+	if b.TicketButton != nil {
+		btnCnf = append(btnCnf, "TicketButton")
+	}
+
+	btnStr += fmt.Sprintf("\n\tModifier: %v", btnCnf)
+
+	btnStr += fmt.Sprintf("\n\tGoto: %s", b.Goto)
+	if b.NestedMenu != nil {
+		btnStr += fmt.Sprintf("\n\tNestedMenu ID: %v", b.NestedMenu.ID)
+	}
+
+	return fmt.Sprintf("%s\n", btnStr)
+}
+
+func (b SaveToVar) View() (btnStr string) {
+	btnStr += fmt.Sprintf("\n\tVarName: %s", b.VarName)
+	btnStr += fmt.Sprintf("\n\tSendText: %s", *b.SendText)
+	btnStr += fmt.Sprintf("\n\tlen(OfferOptions): %d", len(b.OfferOptions))
+
+	tabLines := func(input, tabs string) string {
+		lines := strings.Split(input, "\n")
+		for i := range lines {
+			lines[i] = tabs + lines[i]
+		}
+		return strings.Join(lines, "\n")
+	}
+
+	if b.DoButton != nil {
+		btnStr += fmt.Sprintf("\n\tDoButton: {%s}", tabLines(b.DoButton.View(), "\t"))
+	} else {
+		btnStr += "\n\tDoButton: nil"
+	}
+
+	return fmt.Sprintf("%s\n", btnStr)
+}
+
+func (b TicketButton) View() (btnStr string) {
+	btnStr += fmt.Sprintf("\n\tChannelID: %s", b.ChannelID)
+	btnStr += fmt.Sprintf("\n\tlen(TicketInfo): %d", len([]rune(b.TicketInfo)))
+
+	formatPartTicket := func(fieldName string, pt *PartTicket) string {
+		if pt == nil {
+			return fmt.Sprintf("\n\t\t%s: nil", fieldName)
+		}
+		defaultValue := "nil"
+		if pt.DefaultValue != nil {
+			defaultValue = *pt.DefaultValue
+		}
+		return fmt.Sprintf("\n\t\t%s: { Text: %s, DefaultValue: %s }", fieldName, pt.Text, defaultValue)
+	}
+
+	btnStr += "\n\tData: {"
+	btnStr += formatPartTicket("Theme", b.Data.Theme)
+	btnStr += formatPartTicket("Description", b.Data.Description)
+	btnStr += formatPartTicket("Executor", b.Data.Executor)
+	btnStr += formatPartTicket("Service", b.Data.Service)
+	btnStr += formatPartTicket("ServiceType", b.Data.ServiceType)
+	btnStr += "\n\t}"
+
+	btnStr += fmt.Sprintf("\n\tGoto: %s", b.Goto)
+
+	return fmt.Sprintf("%s\n", btnStr)
 }
 
 type TicketButton struct {

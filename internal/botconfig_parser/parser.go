@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 
@@ -167,10 +168,10 @@ func nestedToFlat(main *Levels, buttons []*Buttons, k string, depthLevel int) er
 			}
 
 			if b.Button.NestedMenu.ID == "" {
-				return fmt.Errorf("отсутствует id у вложенного меню: %s %#v lvl:%d", k, b, depthLevel)
+				return fmt.Errorf("отсутствует id у вложенного меню: %s {%s} lvl:%d", k, b.Button.View(), depthLevel)
 			}
 			if _, exist := main.Menu[b.Button.NestedMenu.ID]; exist && b.Button.NestedMenu.ID != "" {
-				return fmt.Errorf("уже существует меню с данным id(%s): %s %#v lvl:%d", b.Button.NestedMenu.ID, k, b, depthLevel)
+				return fmt.Errorf("уже существует меню с данным id(%s): %s {%s} lvl:%d", b.Button.NestedMenu.ID, k, b.Button.View(), depthLevel)
 			}
 			menu := &Menu{
 				Answer:     b.Button.NestedMenu.Answer,
@@ -294,18 +295,19 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 		if l.SaveToVar != nil {
 			b.Button.SetDefault(*l.SaveToVar)
 		}
+		sBtnView := b.Button.SaveToVar.View()
 
 		if b.Button.SaveToVar.VarName == "" {
-			return fmt.Errorf("отсутствует var_name (имя переменной для сохранения данных): %s %#v lvl:%d", k, b, depthLevel)
+			return fmt.Errorf("SaveToVar: отсутствует var_name (имя переменной для сохранения данных): %s {%s} lvl:%d", k, sBtnView, depthLevel)
 		}
 		if b.Button.SaveToVar.VarName == database.VAR_FOR_SAVE {
-			return fmt.Errorf("используется зарезервированное имя переменной %s %#v lvl:%d", k, b, depthLevel)
+			return fmt.Errorf("SaveToVar: используется зарезервированное имя переменной %s {%s} lvl:%d", k, sBtnView, depthLevel)
 		}
 		if b.Button.SaveToVar.DoButton == nil {
-			return fmt.Errorf("отсутствует do_button (действие которое выполнится после ответа пользователя): %s %#v lvl:%d", k, b, depthLevel)
+			return fmt.Errorf("SaveToVar: отсутствует do_button (действие которое выполнится после ответа пользователя): %s {%s} lvl:%d", k, sBtnView, depthLevel)
 		}
 		if b.Button.SaveToVar.DoButton.BackButton {
-			return fmt.Errorf("в do_button нельзя использовать back_button: %s %#v lvl:%d", k, b, depthLevel)
+			return fmt.Errorf("SaveToVar: в do_button нельзя использовать back_button: %s {%s} lvl:%d", k, sBtnView, depthLevel)
 		}
 		modifycatorCount++
 	}
@@ -316,73 +318,48 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 		}
 
 		tBtn := b.Button.TicketButton
+		tBtnView := b.Button.TicketButton.View()
 		if tBtn.ChannelID == uuid.Nil {
-			return fmt.Errorf("отсутствует канал связи (channel_id): %s %#v lvl:%d", k, b, depthLevel)
+			return fmt.Errorf("TicketButton: отсутствует канал связи (channel_id): %s {%s} lvl:%d", k, tBtnView, depthLevel)
 		}
 		if tBtn.TicketInfo == "" {
-			return fmt.Errorf("отсутствует шаблон текста, где выводятся заполненные данные заявки (ticket_info): %s %#v lvl:%d", k, b, depthLevel)
+			return fmt.Errorf("TicketButton: отсутствует шаблон текста, где выводятся заполненные данные заявки (ticket_info): %s {%s} lvl:%d", k, tBtnView, depthLevel)
 		}
-		if tBtn.Data != nil {
-			if tBtn.Data.Theme != nil {
-				if tBtn.Data.Theme.Text == "" && tBtn.Data.Theme.DefaultValue == nil {
-					return fmt.Errorf("поле должно содержать text или value (theme): %s %#v lvl:%d", k, b, depthLevel)
-				}
-			} else {
-				return fmt.Errorf("отсутствует поле (theme): %s %#v lvl:%d", k, b, depthLevel)
-			}
-
-			if tBtn.Data.Description != nil {
-				if tBtn.Data.Description.Text == "" && tBtn.Data.Description.DefaultValue == nil {
-					return fmt.Errorf("поле должно содержать text или value (description): %s %#v lvl:%d", k, b, depthLevel)
-				}
-			} else {
-				return fmt.Errorf("отсутствует поле (description): %s %#v lvl:%d", k, b, depthLevel)
-			}
-
-			if tBtn.Data.Executor != nil {
-				if tBtn.Data.Executor.Text == "" && tBtn.Data.Executor.DefaultValue == nil {
-					return fmt.Errorf("поле должно содержать text или value (executor): %s %#v lvl:%d", k, b, depthLevel)
-				}
-				if tBtn.Data.Executor.DefaultValue != nil {
-					_, err := uuid.Parse(*tBtn.Data.Executor.DefaultValue)
-					if err != nil {
-						return fmt.Errorf("value не id (executor): %s %#v lvl:%d", k, b, depthLevel)
-					}
-				}
-			} else {
-				return fmt.Errorf("отсутствует поле (executor): %s %#v lvl:%d", k, b, depthLevel)
-			}
-
-			if tBtn.Data.Service != nil {
-				if tBtn.Data.Service.Text == "" && tBtn.Data.Service.DefaultValue == nil {
-					return fmt.Errorf("поле должно содержать text или value (service): %s %#v lvl:%d", k, b, depthLevel)
-				}
-				if tBtn.Data.Service.DefaultValue != nil {
-					_, err := uuid.Parse(*tBtn.Data.Service.DefaultValue)
-					if err != nil {
-						return fmt.Errorf("value не id (service): %s %#v lvl:%d", k, b, depthLevel)
-					}
-				}
-			} else {
-				return fmt.Errorf("отсутствует поле (service): %s %#v lvl:%d", k, b, depthLevel)
-			}
-
-			if tBtn.Data.ServiceType != nil {
-				if tBtn.Data.ServiceType.Text == "" && tBtn.Data.ServiceType.DefaultValue == nil {
-					return fmt.Errorf("поле должно содержать text или value (type): %s %#v lvl:%d", k, b, depthLevel)
-				}
-				if tBtn.Data.ServiceType.DefaultValue != nil {
-					_, err := uuid.Parse(*tBtn.Data.ServiceType.DefaultValue)
-					if err != nil {
-						return fmt.Errorf("value не id (type): %s %#v lvl:%d", k, b, depthLevel)
-					}
-				}
-			} else {
-				return fmt.Errorf("отсутствует поле (type): %s %#v lvl:%d", k, b, depthLevel)
-			}
-		} else {
-			return fmt.Errorf("отсутствуют данные заполняемой заявки (data): %s %#v lvl:%d", k, b, depthLevel)
+		if tBtn.Data == nil {
+			return fmt.Errorf("TicketButton: отсутствуют данные заполняемой заявки (data): %s {%s} lvl:%d", k, tBtnView, depthLevel)
 		}
+
+		validateField := func(field *PartTicket, fieldName string) error {
+			if field == nil {
+				return fmt.Errorf("TicketButton: отсутствует поле (%s): %s {%s} lvl:%d", fieldName, k, tBtnView, depthLevel)
+			}
+			if field.Text == "" && field.DefaultValue == nil {
+				return fmt.Errorf("TicketButton: поле (%s) должно содержать text или value: %s {%s} lvl:%d", fieldName, k, tBtnView, depthLevel)
+			}
+			if field.DefaultValue != nil && !slices.Contains([]string{"theme", "description"}, fieldName) {
+				if _, err := uuid.Parse(*field.DefaultValue); err != nil {
+					return fmt.Errorf("TicketButton: value не id (%s): %s {%s} lvl:%d", fieldName, k, tBtnView, depthLevel)
+				}
+			}
+			return nil
+		}
+
+		if err := validateField(tBtn.Data.Theme, "theme"); err != nil {
+			return err
+		}
+		if err := validateField(tBtn.Data.Description, "description"); err != nil {
+			return err
+		}
+		if err := validateField(tBtn.Data.Executor, "executor"); err != nil {
+			return err
+		}
+		if err := validateField(tBtn.Data.Service, "service"); err != nil {
+			return err
+		}
+		if err := validateField(tBtn.Data.ServiceType, "type"); err != nil {
+			return err
+		}
+
 		modifycatorCount++
 	}
 
@@ -430,19 +407,19 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 	}
 
 	if modifycatorCount > 1 {
-		return fmt.Errorf("кнопка может иметь только один модификатор: %s %#v lvl:%d", k, b, depthLevel)
+		return fmt.Errorf("кнопка может иметь только один модификатор: %s {%s} lvl:%d", k, b.Button.View(), depthLevel)
 	}
 	if b.Button.Goto != "" && b.Button.BackButton {
-		return fmt.Errorf("back_button не может иметь goto: %s %#v lvl:%d", k, b, depthLevel)
+		return fmt.Errorf("back_button не может иметь goto: %s {%s} lvl:%d", k, b.Button.View(), depthLevel)
 	}
 	if _, ok := l.Menu[b.Button.Goto]; b.Button.Goto != "" && !ok && b.Button.Goto != database.CREATE_TICKET_PREV_STAGE {
-		return fmt.Errorf("кнопка ведет на несуществующий уровень: %s %#v lvl:%d", k, b, depthLevel)
+		return fmt.Errorf("кнопка ведет на несуществующий уровень: %s {%s} lvl:%d", k, b.Button.View(), depthLevel)
 	}
 	if len(v.Answer) == 0 || !IsAnyAnswer(v.Answer) {
 		return fmt.Errorf("отсутствует сообщение сопровождающее меню: %s lvl:%d", k, depthLevel)
 	}
 	if b.Button.ButtonText == "" {
-		return fmt.Errorf("текст у кнопки не может быть пустой %s %#v lvl:%d", k, b, depthLevel)
+		return fmt.Errorf("текст у кнопки не может быть пустой %s {%s} lvl:%d", k, b.Button.View(), depthLevel)
 	}
 	return nil
 }
