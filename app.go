@@ -1,11 +1,6 @@
 package main
 
 import (
-	"connect-text-bot/bot"
-	"connect-text-bot/internal/botconfig_parser"
-	"connect-text-bot/internal/config"
-	"connect-text-bot/internal/database"
-	"connect-text-bot/internal/logger"
 	"context"
 	"flag"
 	"log"
@@ -16,6 +11,13 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"connect-text-bot/bot"
+	"connect-text-bot/internal/botconfig_parser"
+	"connect-text-bot/internal/config"
+	"connect-text-bot/internal/database"
+	"connect-text-bot/internal/logger"
+	"connect-text-bot/internal/us"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/fsnotify.v1"
@@ -55,6 +57,8 @@ func main() {
 		database.InjectInMemoryCache("cache", cache),
 		botconfig_parser.InjectLevels("menus", menus),
 		gin.LoggerWithWriter(logFile),
+		us.Inject(cnf.UsServer, cnf.Connect.Login, cnf.Connect.Password),
+		us.InjectMTOM(cnf.UsServer, cnf.Connect.Login, cnf.Connect.Password),
 	)
 
 	bot.InitHooks(app, cnf)
@@ -143,7 +147,7 @@ func main() {
 			case syscall.SIGHUP, syscall.SIGINT:
 				logger.Info("Catch OS signal! Exiting...")
 
-				bot.DestroyHooks(cnf)
+				bot.DestroyHooks()
 
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()

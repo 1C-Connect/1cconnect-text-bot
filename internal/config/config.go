@@ -1,6 +1,8 @@
 package config
 
 import (
+	"connect-text-bot/internal/us"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -11,6 +13,9 @@ type (
 		Server Server `yaml:"server"`
 
 		Connect Connect `yaml:"connect"`
+
+		ConnectServer ConnectServer `yaml:"connect_server"`
+		UsServer      us.UsServer   `yaml:"us_server"`
 
 		FilesDir  string      `yaml:"files_dir"`
 		BotConfig string      `yaml:"bot_config"`
@@ -24,10 +29,12 @@ type (
 	}
 
 	Connect struct {
-		Server     string `yaml:"server"`
-		SoapServer string `yaml:"soap_server"`
-		Login      string `yaml:"login"`
-		Password   string `yaml:"password"`
+		Login    string `yaml:"login"`
+		Password string `yaml:"password"`
+	}
+
+	ConnectServer struct {
+		Addr string `yaml:"addr"`
 	}
 )
 

@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,26 +11,23 @@ import (
 	"strings"
 	"time"
 
-	"connect-text-bot/bot/requests"
-	"connect-text-bot/internal/config"
+	"connect-text-bot/internal/connect/requests"
 	"connect-text-bot/internal/logger"
 
 	"github.com/google/uuid"
 )
 
-var (
-	client = &http.Client{
-		Timeout: 25 * time.Second,
-		Transport: &http.Transport{
-			IdleConnTimeout:     30 * time.Second,
-			DisableKeepAlives:   false,
-			MaxIdleConnsPerHost: 5,
-			DisableCompression:  true,
-		},
-	}
-)
-
 type (
+	Client struct {
+		lineID uuid.UUID
+
+		serverAddr string
+		login      string
+		password   string
+
+		cl *http.Client
+	}
+
 	HttpError struct {
 		Url     string
 		Code    int
@@ -37,31 +35,51 @@ type (
 	}
 )
 
+func New(lineID uuid.UUID, server_addr, login, password string) *Client {
+	return &Client{
+		lineID: lineID,
+
+		serverAddr: server_addr,
+		login:      login,
+		password:   password,
+
+		cl: &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				IdleConnTimeout:     30 * time.Second,
+				DisableKeepAlives:   false,
+				MaxIdleConnsPerHost: 5,
+				DisableCompression:  true,
+			},
+		},
+	}
+}
+
 func (e *HttpError) Error() string {
 	return fmt.Sprintf("Http request failed for %s with code %d and message:\n%s", e.Url, e.Code, e.Message)
 }
 
-func SetHook(cnf *config.Conf, lineID uuid.UUID) (content []byte, err error) {
+func (c *Client) SetHook(hookAddr string) (content []byte, err error) {
 	data := requests.HookSetupRequest{
-		ID:   lineID,
+		ID:   c.lineID,
 		Type: "bot",
-		Url:  cnf.Server.Host + "/connect-push/receive/",
+		Url:  hookAddr,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	return Invoke(cnf, http.MethodPost, "/hook/", nil, "application/json", jsonData)
+	return c.Invoke(context.Background(), http.MethodPost, "/hook/", nil, "application/json", jsonData)
 }
 
-func DeleteHook(cnf *config.Conf, lineID uuid.UUID) (content []byte, err error) {
-	return Invoke(cnf, http.MethodDelete, "/hook/bot/"+lineID.String()+"/", nil, "application/json", nil)
+func (c *Client) DeleteHook() (content []byte, err error) {
+	return c.Invoke(context.Background(), http.MethodDelete, "/hook/bot/"+c.lineID.String()+"/", nil, "application/json", nil)
 }
 
-func Invoke(cnf *config.Conf, method string, methodUrl string, urlParams url.Values, contentType string, body []byte) (content []byte, err error) {
+func (c *Client) Invoke(ctx context.Context, method string, methodUrl string, urlParams url.Values, contentType string, body []byte) (content []byte, err error) {
 	methodUrl = strings.Trim(methodUrl, "/")
-	reqUrl := cnf.Connect.Server + "/v1/" + methodUrl + "/"
+	reqUrl := c.serverAddr + "/v1/" + methodUrl + "/"
 	if urlParams != nil {
 		reqUrl += "?" + urlParams.Encode()
 	}
@@ -71,12 +89,12 @@ func Invoke(cnf *config.Conf, method string, methodUrl string, urlParams url.Val
 		logger.Warning("Error while create request for", reqUrl, "with method", method, ":", err)
 	}
 
-	req.SetBasicAuth(cnf.Connect.Login, cnf.Connect.Password)
+	req.SetBasicAuth(c.login, c.password)
 	req.Header.Set("Content-Type", contentType)
 
 	logger.Debug("---> request", req.Method, reqUrl)
 
-	resp, err := client.Do(req)
+	resp, err := c.cl.Do(req)
 
 	if err != nil {
 		return nil, err

@@ -9,14 +9,13 @@ import (
 	"strings"
 	"sync"
 
-	"connect-text-bot/bot/requests"
+	"connect-text-bot/internal/connect/requests"
 	"connect-text-bot/internal/database"
 	"connect-text-bot/internal/logger"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-
 	"github.com/goccy/go-yaml"
+	"github.com/google/uuid"
 )
 
 var lock = &sync.RWMutex{}
@@ -232,7 +231,7 @@ func (l *Levels) checkMenus() error {
 	}
 
 	// настраиваем текста ошибок по умолчанию которые не настроены
-	setDefaultErrorMessages(l)
+	l.setDefaultErrorMessages()
 
 	// проверка меню и подуровней
 	for k, v := range l.Menu {
@@ -425,33 +424,26 @@ func (l *Levels) checkButton(b *Buttons, k string, v *Menu, depthLevel int) erro
 }
 
 // настроить текста ошибок по умолчанию
-func setDefaultErrorMessages(l *Levels) {
-	if l.ErrorMessages.CommandUnknown == "" {
-		l.ErrorMessages.CommandUnknown = "Команда неизвестна. Попробуйте еще раз"
+func (l *Levels) setDefaultErrorMessages() {
+	var messages = []struct {
+		msg          *string
+		defaultValue string
+	}{
+		{&l.ErrorMessages.CommandUnknown, "Команда неизвестна. Попробуйте еще раз"},
+		{&l.ErrorMessages.ButtonProcessing, "Во время обработки вашего запроса произошла ошибка"},
+		{&l.ErrorMessages.FailedSendFile, "Ошибка: Не удалось отправить файл"},
+		{&l.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable, "Выбранный специалист недоступен"},
+		{&l.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable, "Специалисты данной области недоступны"},
+		{&l.ErrorMessages.RerouteButton.SelectedLineNotAvailable, "Выбранная линия недоступна"},
+		{&l.ErrorMessages.TicketButton.StepCannotBeSkipped, "Данный этап нельзя пропустить"},
+		{&l.ErrorMessages.TicketButton.ReceivedIncorrectValue, "Получено некорректное значение. Повторите попытку"},
+		{&l.ErrorMessages.TicketButton.ExpectedButtonPress, "Ожидалось нажатие на кнопку. Повторите попытку"},
 	}
-	if l.ErrorMessages.ButtonProcessing == "" {
-		l.ErrorMessages.ButtonProcessing = "Во время обработки вашего запроса произошла ошибка"
-	}
-	if l.ErrorMessages.FailedSendFile == "" {
-		l.ErrorMessages.FailedSendFile = "Ошибка: Не удалось отправить файл"
-	}
-	if l.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable == "" {
-		l.ErrorMessages.AppointSpecButton.SelectedSpecNotAvailable = "Выбранный специалист недоступен"
-	}
-	if l.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable == "" {
-		l.ErrorMessages.AppointRandomSpecFromListButton.SpecsNotAvailable = "Специалисты данной области недоступны"
-	}
-	if l.ErrorMessages.RerouteButton.SelectedLineNotAvailable == "" {
-		l.ErrorMessages.RerouteButton.SelectedLineNotAvailable = "Выбранная линия недоступна"
-	}
-	if l.ErrorMessages.TicketButton.StepCannotBeSkipped == "" {
-		l.ErrorMessages.TicketButton.StepCannotBeSkipped = "Данный этап нельзя пропустить"
-	}
-	if l.ErrorMessages.TicketButton.ReceivedIncorrectValue == "" {
-		l.ErrorMessages.TicketButton.ReceivedIncorrectValue = "Получено некорректное значение. Повторите попытку"
-	}
-	if l.ErrorMessages.TicketButton.ExpectedButtonPress == "" {
-		l.ErrorMessages.TicketButton.ExpectedButtonPress = "Ожидалось нажатие на кнопку. Повторите попытку"
+
+	for _, v := range messages {
+		if *v.msg == "" {
+			*v.msg = v.defaultValue
+		}
 	}
 }
 
