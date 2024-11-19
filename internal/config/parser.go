@@ -25,10 +25,10 @@ func GetConfig(configPath string, cnf *Conf) {
 	if err != nil {
 		logger.Crit("Error while decoding config!")
 	}
-	if cnf.Connect.Server == "" {
-		cnf.Connect.Server = CONNECT_SERVER
+	if cnf.ConnectServer.Addr == "" {
+		cnf.ConnectServer.Addr = CONNECT_SERVER
 	}
-	if cnf.Connect.SoapServer == "" {
-		cnf.Connect.SoapServer = CONNECT_SOAP_SERVER
+	if cnf.UsServer.Addr == "" {
+		cnf.UsServer.Addr = CONNECT_SOAP_SERVER
 	}
 }
