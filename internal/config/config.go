@@ -17,10 +17,11 @@ type (
 		ConnectServer ConnectServer `yaml:"connect_server"`
 		UsServer      us.UsServer   `yaml:"us_server"`
 
-		FilesDir  string      `yaml:"files_dir"`
-		BotConfig string      `yaml:"bot_config"`
-		SpecID    *uuid.UUID  `yaml:"spec_id"`
-		Line      []uuid.UUID `yaml:"line"`
+		FilesDir        string      `yaml:"files_dir"`
+		BotConfig       string      `yaml:"bot_config"`
+		SpecID          *uuid.UUID  `yaml:"spec_id"`
+		GeneralSettings bool        `yaml:"use_general_settings"`
+		Line            []uuid.UUID `yaml:"line"`
 	}
 
 	Server struct {

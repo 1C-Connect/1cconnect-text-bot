@@ -25,6 +25,10 @@ type (
 		login      string
 		password   string
 
+		generalSettings bool
+
+		specID *uuid.UUID
+
 		cl *http.Client
 	}
 
@@ -35,13 +39,17 @@ type (
 	}
 )
 
-func New(lineID uuid.UUID, server_addr, login, password string) *Client {
+func New(lineID uuid.UUID, server_addr, login, password string, generalSettings bool, specID *uuid.UUID) *Client {
 	return &Client{
 		lineID: lineID,
 
 		serverAddr: server_addr,
 		login:      login,
 		password:   password,
+
+		generalSettings: generalSettings,
+
+		specID: specID,
 
 		cl: &http.Client{
 			Timeout: 10 * time.Second,

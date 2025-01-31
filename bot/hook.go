@@ -20,7 +20,7 @@ func InitHooks(app *gin.Engine, cnf *config.Conf) {
 	var err error
 	for _, lineID := range cnf.Line {
 		logger.Info("- hook for line", lineID)
-		connect := client.New(lineID, cnf.ConnectServer.Addr, cnf.Connect.Login, cnf.Connect.Password)
+		connect := client.New(lineID, cnf.ConnectServer.Addr, cnf.Connect.Login, cnf.Connect.Password, cnf.GeneralSettings, cnf.SpecID)
 
 		_, err = connect.SetHook(cnf.Server.Host + eventUri)
 		if err != nil {

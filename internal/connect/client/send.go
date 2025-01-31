@@ -49,13 +49,14 @@ func (c Client) DropKeyboard(ctx context.Context, userID uuid.UUID) (err error) 
 }
 
 // Отправить сообщение в чат
-func (c Client) Send(ctx context.Context, userID uuid.UUID, authorID *uuid.UUID, text string, keyboard *[][]requests.KeyboardKey) error {
+func (c Client) Send(ctx context.Context, userID uuid.UUID, text string, keyboard *[][]requests.KeyboardKey) error {
 	data := requests.MessageRequest{
-		LineID:   c.lineID,
-		UserID:   userID,
-		AuthorID: authorID,
-		Text:     text,
-		Keyboard: keyboard,
+		LineID:          c.lineID,
+		UserID:          userID,
+		AuthorID:        c.specID,
+		GeneralSettings: c.generalSettings,
+		Text:            text,
+		Keyboard:        keyboard,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -69,14 +70,15 @@ func (c Client) Send(ctx context.Context, userID uuid.UUID, authorID *uuid.UUID,
 }
 
 // Метод позволяет отправить файл или изображение в чат
-func (c Client) SendFile(ctx context.Context, userID uuid.UUID, authorID *uuid.UUID, isImage bool, fileName string, filePath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
+func (c Client) SendFile(ctx context.Context, userID uuid.UUID, isImage bool, fileName string, filePath string, comment *string, keyboard *[][]requests.KeyboardKey) error {
 	data := requests.FileRequest{
-		LineID:   c.lineID,
-		UserID:   userID,
-		AuthorID: authorID,
-		FileName: filepath.Base(fileName),
-		Comment:  comment,
-		Keyboard: keyboard,
+		LineID:          c.lineID,
+		UserID:          userID,
+		AuthorID:        c.specID,
+		GeneralSettings: c.generalSettings,
+		FileName:        filepath.Base(fileName),
+		Comment:         comment,
+		Keyboard:        keyboard,
 	}
 
 	jsonData, err := json.Marshal(data)

@@ -177,7 +177,7 @@ func SendAnswerMenuChat(ctx context.Context, md *MultiData, answer *botconfig_pa
 		if err != nil {
 			return err
 		}
-		err = md.bot.connect.Send(ctx, md.msg.UserID, md.cnf.SpecID, r, keyboard)
+		err = md.bot.connect.Send(ctx, md.msg.UserID, r, keyboard)
 		return err
 	}
 	return nil
@@ -187,12 +187,12 @@ func SendAnswerMenuChat(ctx context.Context, md *MultiData, answer *botconfig_pa
 func SendAnswerMenuFile(ctx context.Context, md *MultiData, answer *botconfig_parser.Answer, keyboard *[][]requests.KeyboardKey) {
 	if answer.File != "" {
 		if isImage, filePath, err := getFileInfo(answer.File, md.cnf.FilesDir); err == nil {
-			err = md.bot.connect.SendFile(ctx, md.msg.UserID, md.cnf.SpecID, isImage, answer.File, filePath, &answer.FileText, keyboard)
+			err = md.bot.connect.SendFile(ctx, md.msg.UserID, isImage, answer.File, filePath, &answer.FileText, keyboard)
 			if err != nil {
 				logger.Warning(err)
 			}
 		} else {
-			_ = md.bot.connect.Send(ctx, md.msg.UserID, md.cnf.SpecID, md.menu.ErrorMessages.FailedSendFile, keyboard)
+			_ = md.bot.connect.Send(ctx, md.msg.UserID, md.menu.ErrorMessages.FailedSendFile, keyboard)
 		}
 	}
 }
@@ -242,7 +242,7 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 	ticket := database.Ticket{}
 	text := ""
 
-	chatState, msg, bot, cnf := md.chatState, md.msg, md.bot, md.cnf
+	chatState, msg, bot := md.chatState, md.msg, md.bot
 
 	// настройки для клавиатуры
 	keyboard := &[][]requests.KeyboardKey{}
@@ -435,7 +435,7 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 	// сохраняем имя переменной куда будем записывать результат
 	_ = chatState.ChangeCacheVars(md.cacheDB, msg.UserID, msg.LineID, database.VAR_FOR_SAVE, nextVar)
 
-	err = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, r, keyboard)
+	err = bot.connect.Send(ctx, msg.UserID, r, keyboard)
 	return database.CREATE_TICKET, err
 }
 
@@ -498,7 +498,7 @@ func processMessage(md *MultiData) (string, error) {
 	defer cancel()
 
 	var err error
-	chatState, msg, bot, menu, cnf := md.chatState, md.msg, md.bot, md.menu, md.cnf
+	chatState, msg, bot, menu := md.chatState, md.msg, md.bot, md.menu
 
 	switch msg.MessageType {
 	// Первый запуск.
@@ -545,7 +545,7 @@ func processMessage(md *MultiData) (string, error) {
 			}
 
 			if menu.FirstGreeting {
-				_ = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, menu.GreetingMessage, nil)
+				_ = bot.connect.Send(ctx, msg.UserID, menu.GreetingMessage, nil)
 				time.Sleep(time.Second)
 			}
 			return SendAnswer(ctx, md, database.START, err)
@@ -606,7 +606,7 @@ func processMessage(md *MultiData) (string, error) {
 			case ticket.GetExecutor(), ticket.GetService(), ticket.GetServiceType():
 				// если кнопка перехода к следующему шагу
 				if btn != nil && btn.Goto == database.CREATE_TICKET {
-					err = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
+					err = bot.connect.Send(ctx, msg.UserID, menu.ErrorMessages.TicketButton.StepCannotBeSkipped, nil)
 					return database.CREATE_TICKET, err
 				} else {
 					switch varName {
@@ -667,7 +667,7 @@ func processMessage(md *MultiData) (string, error) {
 					}
 
 					// если не найдено значение то ошибка
-					err = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, menu.ErrorMessages.TicketButton.ReceivedIncorrectValue, nil)
+					err = bot.connect.Send(ctx, msg.UserID, menu.ErrorMessages.TicketButton.ReceivedIncorrectValue, nil)
 					return database.CREATE_TICKET, err
 				}
 
@@ -680,7 +680,7 @@ func processMessage(md *MultiData) (string, error) {
 						return finalSend(ctx, md, "", err)
 					}
 
-					_ = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, "Заявка регистрируется, ожидайте...", nil)
+					_ = bot.connect.Send(ctx, msg.UserID, "Заявка регистрируется, ожидайте...", nil)
 
 					// регистрируем заявку
 					r, err := us.CreateTicket(ctx, md.soapcl, msg.UserID, msg.LineID, chatState.GetCacheTicket())
@@ -705,7 +705,7 @@ func processMessage(md *MultiData) (string, error) {
 				}
 			}
 
-			err = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, menu.ErrorMessages.TicketButton.ExpectedButtonPress, nil)
+			err = bot.connect.Send(ctx, msg.UserID, menu.ErrorMessages.TicketButton.ExpectedButtonPress, nil)
 			return database.CREATE_TICKET, err
 
 		// пользователь попадет сюда в случае перехода в режим ожидания сообщения
@@ -743,7 +743,7 @@ func processMessage(md *MultiData) (string, error) {
 			cm, ok := menu.Menu[currentMenu]
 			if !ok {
 				logger.Warning("неизвестное состояние: ", currentMenu)
-				err = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, menu.ErrorMessages.CommandUnknown, menu.GenKeyboard(database.START))
+				err = bot.connect.Send(ctx, msg.UserID, menu.ErrorMessages.CommandUnknown, menu.GenKeyboard(database.START))
 				return database.GREETINGS, err
 			}
 
@@ -758,7 +758,7 @@ func processMessage(md *MultiData) (string, error) {
 				if !cm.QnaDisable && menu.UseQNA.Enabled {
 					return qnaResponse(ctx, md, currentMenu)
 				}
-				err = bot.connect.Send(ctx, msg.UserID, md.cnf.SpecID, menu.ErrorMessages.CommandUnknown, menu.GenKeyboard(currentMenu))
+				err = bot.connect.Send(ctx, msg.UserID, menu.ErrorMessages.CommandUnknown, menu.GenKeyboard(currentMenu))
 				return chatState.CurrentState, err
 			}
 		}
@@ -781,12 +781,12 @@ func qnaResponse(ctx context.Context, md *MultiData, currentMenu string) (string
 		go md.bot.connect.QnaSelected(ctx, requestID, resultID)
 
 		if isClose {
-			err = md.bot.connect.Send(ctx, md.msg.UserID, md.cnf.SpecID, qnaText, nil)
+			err = md.bot.connect.Send(ctx, md.msg.UserID, qnaText, nil)
 			_ = md.bot.connect.CloseTreatment(ctx, md.msg.UserID)
 			return currentMenu, err
 		}
 
-		err = md.bot.connect.Send(ctx, md.msg.UserID, md.cnf.SpecID, qnaText, md.menu.GenKeyboard(currentMenu))
+		err = md.bot.connect.Send(ctx, md.msg.UserID, qnaText, md.menu.GenKeyboard(currentMenu))
 		return currentMenu, err
 	}
 
@@ -913,7 +913,7 @@ func triggerButton(ctx context.Context, md *MultiData, btn *botconfig_parser.But
 		}
 
 		// выводим результат и завершаем
-		_ = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, string(cmdOutput), nil)
+		_ = bot.connect.Send(ctx, msg.UserID, string(cmdOutput), nil)
 		goTo := database.FINAL
 		if btn.Goto != "" {
 			goTo = btn.Goto
@@ -939,7 +939,7 @@ func triggerButton(ctx context.Context, md *MultiData, btn *botconfig_parser.But
 				return finalSend(ctx, md, "", err)
 			}
 
-			_ = bot.connect.Send(ctx, msg.UserID, cnf.SpecID, r, keyboard)
+			_ = bot.connect.Send(ctx, msg.UserID, r, keyboard)
 		} else {
 			// выводим default WAIT_SEND меню в случае отсутствия настроек текста
 			err = SendAnswerMenu(ctx, md, menu.Menu[database.WAIT_SEND].Answer, keyboard)
@@ -997,7 +997,7 @@ func finalSend(ctx context.Context, md *MultiData, finalMsg string, err error) (
 	if finalMsg == "" {
 		finalMsg = md.menu.ErrorMessages.ButtonProcessing
 	}
-	_ = md.bot.connect.Send(ctx, md.msg.UserID, md.cnf.SpecID, finalMsg, nil)
+	_ = md.bot.connect.Send(ctx, md.msg.UserID, finalMsg, nil)
 
 	// чистим данные чтобы избежать повторных ошибок
 	_ = md.chatState.HistoryStateClear(md.cacheDB, md.msg.UserID, md.msg.LineID)
