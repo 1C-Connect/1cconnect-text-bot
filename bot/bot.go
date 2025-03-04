@@ -89,6 +89,7 @@ func Receive(c *gin.Context) {
 		newState, err := processMessage(&md)
 		if err != nil {
 			logger.Warning("Error processMessage", err)
+			return
 		}
 
 		err = md.chatState.ChangeCacheState(cacheDB, msg.UserID, msg.LineID, newState)
@@ -775,12 +776,12 @@ func qnaResponse(ctx context.Context, md *MultiData, currentMenu string) (string
 	var err error
 
 	// logger.Info("QNA", msg, chatState)
-	qnaText, isClose, requestID, resultID := getMessageFromQNA(ctx, md)
+	qnaText, needClose, requestID, resultID := getMessageFromQNA(ctx, md)
 	if qnaText != "" {
 		// Была подсказка
 		go md.bot.connect.QnaSelected(ctx, requestID, resultID)
 
-		if isClose {
+		if needClose {
 			err = md.bot.connect.Send(ctx, md.msg.UserID, qnaText, nil)
 			_ = md.bot.connect.CloseTreatment(ctx, md.msg.UserID)
 			return currentMenu, err
@@ -1006,16 +1007,21 @@ func finalSend(ctx context.Context, md *MultiData, finalMsg string, err error) (
 }
 
 // getMessageFromQNA - Метод возвращает ответ с Базы Знаний, и флаг, если это сообщение закрывает обращение.
-func getMessageFromQNA(ctx context.Context, md *MultiData) (string, bool, uuid.UUID, uuid.UUID) {
-	resultID := uuid.Nil
-	qnaAnswer := md.bot.connect.GetQNA(ctx, md.msg.UserID, false, false)
+func getMessageFromQNA(ctx context.Context, md *MultiData) (answer string, needClose bool, requestID uuid.UUID, resultID uuid.UUID) {
+	qnaAnswer, err := md.bot.connect.GetQNA(ctx, md.msg.UserID, false, false)
+	if err != nil {
+		return
+	}
 
 	for _, v := range qnaAnswer.Answers {
 		if v.Accuracy > 0 {
 			resultID = v.ID
-			return v.Text, v.AnswerSource == "GOODBYES", qnaAnswer.RequestID, resultID
+			needClose = v.AnswerSource == "GOODBYES"
+			requestID = qnaAnswer.RequestID
+			answer = v.Text
+			return
 		}
 	}
 
-	return "", false, resultID, resultID
+	return
 }
