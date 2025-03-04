@@ -504,7 +504,10 @@ func processMessage(md *MultiData) (string, error) {
 	switch msg.MessageType {
 	// Первый запуск.
 	case messages.MESSAGE_TREATMENT_START_BY_USER:
-		if chatState.CurrentState == database.START {
+		switch chatState.CurrentState {
+		case database.START,
+			database.GREETINGS,
+			database.FAIL_QNA:
 			return chatState.CurrentState, nil
 		}
 		err := chatState.HistoryStateClear(md.cacheDB, msg.UserID, msg.LineID)
