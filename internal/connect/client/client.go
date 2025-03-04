@@ -67,7 +67,7 @@ func (e *HttpError) Error() string {
 	return fmt.Sprintf("Http request failed for %s with code %d and message:\n%s", e.Url, e.Code, e.Message)
 }
 
-func (c *Client) SetHook(hookAddr string) (content []byte, err error) {
+func (c *Client) SetHook(hookAddr string) ([]byte, error) {
 	data := requests.HookSetupRequest{
 		ID:   c.lineID,
 		Type: "bot",
@@ -81,7 +81,7 @@ func (c *Client) SetHook(hookAddr string) (content []byte, err error) {
 	return c.Invoke(context.Background(), http.MethodPost, "/hook/", nil, "application/json", jsonData)
 }
 
-func (c *Client) DeleteHook() (content []byte, err error) {
+func (c *Client) DeleteHook() ([]byte, error) {
 	return c.Invoke(context.Background(), http.MethodDelete, "/hook/bot/"+c.lineID.String()+"/", nil, "application/json", nil)
 }
 
@@ -103,25 +103,25 @@ func (c *Client) Invoke(ctx context.Context, method string, methodUrl string, ur
 	logger.Debug("---> request", req.Method, reqUrl)
 
 	resp, err := c.cl.Do(req)
-
 	if err != nil {
 		return nil, err
-	} else {
-		defer resp.Body.Close()
-		bodyBytes, err := io.ReadAll(resp.Body)
-		logger.Debug("<--- request", req.Method, reqUrl, "with body", bodyBytes)
-		if err != nil {
-			logger.Warning("Error while read response body", err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, &HttpError{
-				Url:     req.URL.String(),
-				Code:    resp.StatusCode,
-				Message: string(bodyBytes),
-			}
-		}
-
-		return bodyBytes, nil
 	}
+	defer resp.Body.Close()
+
+	content, err = io.ReadAll(resp.Body)
+	logger.Debug("<--- request", req.Method, reqUrl, "with body", content)
+	if err != nil {
+		logger.Warning("Error while read response body", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		err = &HttpError{
+			Url:     req.URL.String(),
+			Code:    resp.StatusCode,
+			Message: string(content),
+		}
+		return
+	}
+
+	return
 }
