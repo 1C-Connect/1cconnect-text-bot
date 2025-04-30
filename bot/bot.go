@@ -327,7 +327,7 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 
 			// формируем клавиатуру
 			for _, v := range listSpecs {
-				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic)}})
+				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: strings.TrimSpace(fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic))}})
 			}
 			*keyboard = append(*keyboard, btnAgain)
 			*keyboard = append(*keyboard, btnBack)
