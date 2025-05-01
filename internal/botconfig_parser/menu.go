@@ -263,6 +263,8 @@ type TicketButton struct {
 }
 
 type PartTicket struct {
+	// не показывать кнопку пропуска
+	Required bool `yaml:"required,omitempty"`
 	// текст приглашения к вводу
 	Text string `yaml:"text,omitempty"`
 	// значение по умолчанию

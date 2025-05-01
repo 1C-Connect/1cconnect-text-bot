@@ -248,6 +248,7 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 	// настройки для клавиатуры
 	keyboard := &[][]requests.KeyboardKey{}
 	btnAgain := []requests.KeyboardKey{{ID: "1", Text: "Далее"}}
+	btnSkip := []requests.KeyboardKey{{ID: "1", Text: "Пропустить"}}
 	btnBack := []requests.KeyboardKey{{ID: "2", Text: "Назад"}}
 	btnCancel := []requests.KeyboardKey{{ID: "0", Text: "Отмена"}}
 	btnConfirm := []requests.KeyboardKey{{ID: "1", Text: "Подтверждаю"}}
@@ -272,7 +273,9 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 			nextVar = ticket.GetDescription()
 		} else {
 			// формируем клавиатуру
-			*keyboard = append(*keyboard, btnAgain)
+			if !button.Data.Theme.Required {
+				*keyboard = append(*keyboard, btnSkip)
+			}
 			*keyboard = append(*keyboard, btnBack)
 			*keyboard = append(*keyboard, btnCancel)
 		}
@@ -296,7 +299,9 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 			nextVar = ticket.GetExecutor()
 		} else {
 			// формируем клавиатуру
-			*keyboard = append(*keyboard, btnAgain)
+			if !button.Data.Description.Required {
+				*keyboard = append(*keyboard, btnSkip)
+			}
 			*keyboard = append(*keyboard, btnBack)
 			*keyboard = append(*keyboard, btnCancel)
 		}
