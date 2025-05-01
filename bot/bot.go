@@ -247,7 +247,6 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 
 	// настройки для клавиатуры
 	keyboard := &[][]requests.KeyboardKey{}
-	btnAgain := []requests.KeyboardKey{{ID: "1", Text: "Далее"}}
 	btnSkip := []requests.KeyboardKey{{ID: "1", Text: "Пропустить"}}
 	btnBack := []requests.KeyboardKey{{ID: "2", Text: "Назад"}}
 	btnCancel := []requests.KeyboardKey{{ID: "0", Text: "Отмена"}}
@@ -334,7 +333,6 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 			for _, v := range listSpecs {
 				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: strings.TrimSpace(fmt.Sprintf("%s %s %s", v.Surname, v.Name, v.Patronymic))}})
 			}
-			*keyboard = append(*keyboard, btnAgain)
 			*keyboard = append(*keyboard, btnBack)
 			*keyboard = append(*keyboard, btnCancel)
 		}
@@ -380,7 +378,6 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 			for _, v := range kinds {
 				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v.Name}})
 			}
-			*keyboard = append(*keyboard, btnAgain)
 			*keyboard = append(*keyboard, btnBack)
 			*keyboard = append(*keyboard, btnCancel)
 		}
@@ -420,7 +417,6 @@ func nextStageTicketButton(ctx context.Context, md *MultiData, button *botconfig
 			for _, v := range kindTypes {
 				*keyboard = append(*keyboard, []requests.KeyboardKey{{Text: v.Name}})
 			}
-			*keyboard = append(*keyboard, btnAgain)
 			*keyboard = append(*keyboard, btnBack)
 			*keyboard = append(*keyboard, btnCancel)
 		}
