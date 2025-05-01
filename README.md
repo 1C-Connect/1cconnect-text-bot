@@ -260,7 +260,7 @@ menus:
   start:
     answer:
       - chat: *select_what_u_want  # Ссылка на анкор с получением значений
-    buttons:         
+    buttons:
       - <<: *узнать_что_находится_по_координатам  # Ссылка на анкор со слиянием
       - button: *сказать_спасибо  # Ссылка на анкор с получением значений
 ```
@@ -272,13 +272,13 @@ menus:
   button: # lvl:1
     id: узнать_что_находится_по_координатам
     text: "Узнать что находится по координатам"
-    save_to_var: 
+    save_to_var:
       var_name: lat
       send_text: "Введите широту"
       do_button: # lvl:2
-        save_to_var: 
+        save_to_var:
           var_name: lon
-          send_text: "Введите долготу" 
+          send_text: "Введите долготу"
           do_button:  # lvl:3
             exec_button: './scripts/example.sh {{ .User.UserID }} {{ .Var.lat }} {{ .Var.lon }}'
 
@@ -473,7 +473,7 @@ menus:
     answer:
       - chat: "Выберите пункт меню"
     buttons: # lvl:1
-      - button: 
+      - button:
           text: '2.1'
           menu:
             id: 'lvl_2.1'
@@ -482,14 +482,14 @@ menus:
             buttons: # lvl:2
               - button:
                   text: "Назад"
-                  back_button: true 
+                  back_button: true
               - button:
                   text: '3.1'
                   menu:
                     id: 'lvl_3.1'
                     answer:
                       - chat: "Вы на уровне 3.1"
-                    buttons: # lvl:3  
+                    buttons: # lvl:3
                       - button:
                           text: "Назад"
                           back_button: true
@@ -571,7 +571,7 @@ buttons:
 ```bash
 #!/bin/bash
 
-echo -n $1 | base64 
+echo -n $1 | base64
 echo -n $2 $3
 ```
 
@@ -598,7 +598,7 @@ chmod +x ./scripts/example.sh
 #### Пример использования:
 
 ```yaml
-menus:  
+menus:
   start:
     answer:
       - chat: '{{ .User.Name }}, Выберите, что вас интересует :point_down::'
@@ -614,15 +614,15 @@ menus:
 ### Как получить и сохранить текст введенный пользователем
 
 ```yaml
-menus:  
+menus:
   start:
     answer:
       - chat: *select_what_u_want
-    buttons:          
+    buttons:
       - button: # lvl:1
           id: 100
           text: "Узнать что находится по координатам"
-          save_to_var: 
+          save_to_var:
             var_name: lat
             send_text: "Введите широту или выберите один из предложенных вариантов"
             offer_options:
@@ -632,11 +632,11 @@ menus:
               - -33.4489° S
               - 35.6895° N
             do_button: # lvl:2
-              save_to_var: 
+              save_to_var:
                 var_name: lon
-                send_text: "Введите долготу" 
+                send_text: "Введите долготу"
                 do_button: # lvl:3
-                  goto: coords_check   
+                  goto: coords_check
 
   coords_check:
     answer:
@@ -674,11 +674,11 @@ menus:
 ### Как зарегистрировать заявку
 
 ```yaml
-menus:  
+menus:
   start:
     answer:
       - chat: *select_what_u_want
-    buttons:       
+    buttons:
       - button:
           text: "Зарегистрировать заявку"
           ticket_button:
@@ -693,10 +693,12 @@ menus:
               goto: start
               data: # Данные заявки
                 theme: # Тема
-                  text: "Введите тему или нажмите «Далее»" 
+                  required: true # убирает кнопку Пропустить
+                  text: "Введите тему"
                   value: "Возникла проблема"
                 description: # Описание
-                  text: "{{ .User.Name }} Введите описание или нажмите «Далее»"
+                  required: false # добавляет кнопку Пропустить
+                  text: "{{ .User.Name }} Введите описание или пропустите шаг"
                   value: "Тут видите пример вставки шаблона: {{ .User.Name }}"
                 executor: # Исполнитель
                   text: "Выберите исполнителя"
@@ -713,12 +715,14 @@ menus:
 - `channel_id` - id канала откуда поступает заявка
 - `ticket_info` - шаблон информации о заявке, который будет отображаться на каждом шаге формирования заявки
 - `goto` - необязательный параметр. перейти в определенное меню при нажатие на отмену или завершение заявки
+- `required` - необязательный параметр, если не указать данный параметр или указать значение `false`, то будет доступна кнопка `Пропустить`, если `true` то кнопка будет отсутствовать.
 - `text` - необязательный параметр, если указано `value`. текст который определяет какое сообщение будет на шаге
 - `value` - необязательный параметр, если указан `text`. значение по умолчанию, которое если указано, то будет пропущен шаг
 
 Примечания:
 - необходимо настроить каждый шаг для того чтобы кнопка работала.
 - для каждого шага необходимо указать `text` или `value`, если указать оба параметра, то использоваться будет только значение `value`.
+- параметры `required` доступны только для `theme` и `description` и должны иметь булево значение.
 - параметры `value` для `executor, service, type` должны быть id.
 - не рекомендуется указывать `value` для `type` если не указано `value` для `service`.
 

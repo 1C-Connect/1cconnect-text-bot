@@ -133,6 +133,7 @@ func defaultCreateTicketMenuBtnCnf() *Menu {
 		},
 		Buttons: []*Buttons{
 			{Button{ButtonID: "1", ButtonText: "Далее", Goto: database.CREATE_TICKET}},
+			{Button{ButtonID: "1", ButtonText: "Пропустить", Goto: database.CREATE_TICKET}},
 			{Button{ButtonID: "2", ButtonText: "Назад", Goto: database.CREATE_TICKET_PREV_STAGE}},
 			{Button{ButtonID: "1", ButtonText: "Подтверждаю", Goto: database.CREATE_TICKET}},
 			{Button{ButtonID: "0", ButtonText: "Отмена", BackButton: true}},
